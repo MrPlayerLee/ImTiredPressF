@@ -1,4 +1,5 @@
-﻿#include "../shared/ClientVariant.h"
+﻿#include "../shared/Diagnostics.h"
+#include "../shared/ClientVariant.h"
 #include "Client.h"
 #include "PanelSkin.h"
 #include <commctrl.h>
@@ -54,13 +55,17 @@ void Load()
     if(library || quitting || operation >= 0) return;
     RefreshInstalled();
     try {library=Trust::LoadCore(Folder());trustState="verified";}
-    catch(const std::exception& e){trustState=e.what();notice=std::wstring(L"상태 : ")+Trust::Message(trustState);return;}
+    catch(const std::exception& e){trustState=e.what();if(trustState!="dll_missing")Diagnostics::Write(e.what());notice=std::wstring(L"상태 : ")+Trust::Message(trustState);return;}
     auto get=reinterpret_cast<GetCoreApi>(GetProcAddress(library,"ImTiredPressF_GetApi"));
     auto candidate=get?get(1):nullptr;
     if(!candidate || candidate->size!=sizeof(CoreApi) || candidate->abi!=1 || !candidate->open(g_hWnd)) {
+        Diagnostics::Write("core.ABI or initialization failed");
         FreeLibrary(library); library=nullptr; trustState="load_failed"; notice=L"상태 : 코어 호환 또는 초기화 오류"; return;
     }
     core=candidate; notice.clear();
+    char versions[120]{};
+    sprintf_s(versions,"verified client=%ls core=%ls",RunningClient,installed[1].c_str());
+    Diagnostics::Write(versions);
     auto pos=SendDlgItemMessageW(g_hWnd,IDC_OVERLAY_SCALE,TBM_GETPOS,0,0);
     core->scale(static_cast<float>(pos)/100.f);
     if(IsDlgButtonChecked(g_hWnd,IDC_ALTFSTOP)==BST_CHECKED && !core->hotkeys(true)) {
@@ -79,7 +84,7 @@ void CheckVersions()
     RefreshInstalled();
     latest[0]=latest[1]=L"확인 중";updated.fill(false);updateState="checking";
     try { transfer=std::async(std::launch::async,Download::Latest,ITPF_MCP!=0); }
-    catch(...) {updateState="transfer_failed";notice=L"상태 : 업데이트 확인 실패";}
+    catch(...) {Diagnostics::Write("update.start transfer");updateState="transfer_failed";notice=L"상태 : 업데이트 확인 실패";}
     InvalidateRect(g_hWnd,nullptr,FALSE);
 }
 const wchar_t* Current(int i){return installed[i].c_str();}
@@ -95,6 +100,7 @@ void ApplyUpdate(int i)
 }
 void TransferError(const std::string& code)
 {
+    Diagnostics::Write(code.c_str());
     updateState=code;
     if(code=="not_published" || code=="network" || code=="http_error"){
         latest[0]=latest[1]=code=="not_published"?L"미게시":L"연결 오류";
@@ -122,6 +128,7 @@ void Poll()
     }
     if(operation>=0 && !unloading && !launching) {
         auto finish=[](bool success,const std::string& status) {
+            if(!success && status!="cancelled")Diagnostics::Write(status.c_str());
             bool load=operation==1 && (success || wasLoaded) && !quitting;
             installer.Close();operation=-1;
             if(load)Load();

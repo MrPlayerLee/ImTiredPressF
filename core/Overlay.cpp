@@ -1,4 +1,5 @@
-﻿#include "Common.h"
+﻿#include "../shared/Diagnostics.h"
+#include "Common.h"
 #include "Overlay.h"
 #include "OverlayLayout.h"
 #include <gdiplus.h>
@@ -61,10 +62,11 @@ namespace
         }
         bool Publish(HWND window, POINT point)
         {
-            if (!pixels) return false;
+            if (!pixels) { ITPF_DIAG("overlay.surface allocation",0); return false; }
             SIZE size{width,height}; POINT source{};
             BLENDFUNCTION blend{AC_SRC_OVER,0,255,AC_SRC_ALPHA};
-            return UpdateLayeredWindow(window,nullptr,&point,&size,dc,&source,0,&blend,ULW_ALPHA)!=FALSE;
+            if(UpdateLayeredWindow(window,nullptr,&point,&size,dc,&source,0,&blend,ULW_ALPHA))return true;
+            ITPF_DIAG("overlay.UpdateLayeredWindow",GetLastError()); return false;
         }
     };
 
@@ -196,11 +198,13 @@ namespace
         if (std::wcscmp(title,L"원신") && std::wcscmp(title,L"Genshin Impact")) return false;
         DWORD pid=0; GetWindowThreadProcessId(window,&pid);
         HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid);
-        if (!process) return false;
+        if (!process) { ITPF_DIAG("overlay.OpenProcess game",GetLastError());return false; }
         wchar_t path[32768]{}; DWORD length=32768;
         bool ok=QueryFullProcessImageNameW(process,0,path,&length)!=FALSE;
+        if(!ok) { ITPF_DIAG("overlay.QueryFullProcessImageName",GetLastError()); }
         CloseHandle(process);
         const wchar_t* basename=std::wcsrchr(path,L'\\');
+        if(ok && _wcsicmp(basename ? basename+1 : path,L"GenshinImpact.exe")) { ITPF_DIAG("overlay.game title matched but executable differs",0); }
         return ok && _wcsicmp(basename ? basename+1 : path,L"GenshinImpact.exe")==0;
     }
 
@@ -219,18 +223,22 @@ namespace
 
     // Only move our windows in Z order, directly above the game and below
     // every pre-existing higher window. Never make a desktop-topmost overlay.
+    void Position(HWND window, HWND after, int x,int y,int width,int height,UINT flags)
+    {
+        if(!SetWindowPos(window,after,x,y,width,height,flags)) { ITPF_DIAG("overlay.SetWindowPos",GetLastError()); }
+    }
     void StackAboveTarget()
     {
         if (GetWindowLongPtrW(target,GWL_EXSTYLE)&WS_EX_TOPMOST)
         {
-            SetWindowPos(card,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
-            SetWindowPos(pin,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
+            Position(card,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
+            Position(pin,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
             return;
         }
         if (GetWindowLongPtrW(card,GWL_EXSTYLE)&WS_EX_TOPMOST)
-            SetWindowPos(card,HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
+            Position(card,HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
         if (GetWindowLongPtrW(pin,GWL_EXSTYLE)&WS_EX_TOPMOST)
-            SetWindowPos(pin,HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
+            Position(pin,HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
         HWND above=GetWindow(target,GW_HWNDPREV);
         while (above==card || above==pin) above=GetWindow(above,GW_HWNDPREV);
         if (above && (GetWindowLongPtrW(above,GWL_EXSTYLE)&WS_EX_TOPMOST))
@@ -242,29 +250,31 @@ namespace
         if (!above) above=HWND_TOP;
         HWND current=GetWindow(target,GW_HWNDPREV);
         if (current!=card || !IsWindowVisible(card))
-            SetWindowPos(card,above,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
+            Position(card,above,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
         if (GetWindow(card,GW_HWNDPREV)!=pin || !IsWindowVisible(pin))
-            SetWindowPos(pin,above,
+            Position(pin,above,
                          0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
     }
 
     void Refresh()
     {
+        if(!pin)Diagnostics::Write("overlay.CreateWindow pin",GetLastError());
         if (!card || !pin) return;
-        if (!IsWindowVisible(controller) || !target || !IsWindow(target) ||
-            !IsWindowVisible(target) || IsIconic(target)) { Hide(); return; }
+        if (!IsWindowVisible(controller)) { ITPF_DIAG("overlay.hidden controller not visible",0); Hide(); return; }
+        if (!target || !IsWindow(target)) { ITPF_DIAG("overlay.no matching game window",0); Hide(); return; }
+        if (!IsWindowVisible(target) || IsIconic(target)) { ITPF_DIAG("overlay.hidden game invisible/minimized",0); Hide(); return; }
         // For topmost/fullscreen windows, show only while the game really has
         // foreground. Event observation promptly hides the pair on app switch.
         if ((GetWindowLongPtrW(target,GWL_EXSTYLE)&WS_EX_TOPMOST) &&
-            GetAncestor(GetForegroundWindow(),GA_ROOT)!=target) { Hide(); return; }
+            GetAncestor(GetForegroundWindow(),GA_ROOT)!=target) { ITPF_DIAG("overlay.hidden topmost game not foreground",0); Hide(); return; }
         DWORD pid=0; GetWindowThreadProcessId(target,&pid);
-        if (pid!=targetPid) { target=nullptr; Hide(); return; }
+        if (pid!=targetPid) { ITPF_DIAG("overlay.game process changed",0); target=nullptr; Hide(); return; }
         RECT client{};
-        if (!GetClientRect(target,&client)) { Hide(); return; }
+        if (!GetClientRect(target,&client)) { ITPF_DIAG("overlay.GetClientRect",GetLastError()); Hide(); return; }
         const int width=client.right, height=client.bottom;
-        if (width<64 || height<32) { Hide(); return; }
+        if (width<64 || height<32) { ITPF_DIAG("overlay.game area too small",0); Hide(); return; }
         POINT screen{};
-        if (!ClientToScreen(target,&screen)) { Hide(); return; }
+        if (!ClientToScreen(target,&screen)) { ITPF_DIAG("overlay.ClientToScreen",GetLastError()); Hide(); return; }
         auto layout=OverlayLayout::Fit(width,height,offsetX,offsetY,currentScale);
         offsetX=layout.x; offsetY=layout.y;
         MacroIndicator indicator=GetMacroIndicator();
@@ -283,12 +293,18 @@ namespace
         }
         else
         {
-            SetWindowPos(card,nullptr,position.x,position.y,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-            SetWindowPos(pin,nullptr,pinPosition.x,pinPosition.y,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            Position(card,nullptr,position.x,position.y,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            Position(pin,nullptr,pinPosition.x,pinPosition.y,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
         }
         // Show in the correct order atomically, without ShowWindow raising an
         // initially hidden popup above unrelated applications.
         StackAboveTarget();
+        if(redraw) {
+            char summary[160]{};
+            sprintf_s(summary,"overlay.render game=%dx%d card=%dx%d visible=%d pinVisible=%d",
+                      width,height,layout.width,layout.height,!!IsWindowVisible(card),!!IsWindowVisible(pin));
+            ITPF_DIAG(summary,0);
+        }
     }
 
     void TogglePin()
@@ -297,7 +313,7 @@ namespace
         LONG_PTR style=GetWindowLongPtrW(card,GWL_EXSTYLE);
         if (pinned) style|=WS_EX_TRANSPARENT; else style&=~static_cast<LONG_PTR>(WS_EX_TRANSPARENT);
         SetWindowLongPtrW(card,GWL_EXSTYLE,style);
-        SetWindowPos(card,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+        Position(card,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
         dirty=true; Refresh();
     }
 
@@ -342,22 +358,25 @@ namespace Overlay
     {
         controller=parent;
         Gdiplus::GdiplusStartupInput startup;
-        if (Gdiplus::GdiplusStartup(&graphicsToken,&startup,nullptr)!=Gdiplus::Ok) return false;
+        auto status=Gdiplus::GdiplusStartup(&graphicsToken,&startup,nullptr);
+        if(status!=Gdiplus::Ok){Diagnostics::Write("overlay.GdiplusStartup",status);return false;}
         LoadOverlayFont();
         WNDCLASSW type{};
         type.hInstance=reinterpret_cast<HINSTANCE>(&__ImageBase); type.lpfnWndProc=OverlayProc;
         type.lpszClassName=L"ImTiredPressF_Overlay"; type.hCursor=LoadCursorW(nullptr,IDC_ARROW);
-        if (!RegisterClassW(&type) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) { Shutdown(); return false; }
+        if (!RegisterClassW(&type) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) { Diagnostics::Write("overlay.RegisterClass",GetLastError());Shutdown(); return false; }
         constexpr DWORD style=WS_EX_LAYERED|WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE;
         card=CreateWindowExW(style,type.lpszClassName,L"원신 입력 상태",WS_POPUP,0,0,250,104,
                              nullptr,nullptr,type.hInstance,nullptr);
+        if(!card)Diagnostics::Write("overlay.CreateWindow card",GetLastError());
         pin=CreateWindowExW(style,type.lpszClassName,L"오버레이 고정",WS_POPUP,0,0,26,26,
                             nullptr,nullptr,type.hInstance,nullptr);
+        if(!pin)Diagnostics::Write("overlay.CreateWindow pin",GetLastError());
         if (!card || !pin) { Shutdown(); return false; }
         // Keep this status UI out of supported desktop capture paths so it
         // does not become part of a captured OCR region after dragging.
-        SetWindowDisplayAffinity(card,WDA_EXCLUDEFROMCAPTURE);
-        SetWindowDisplayAffinity(pin,WDA_EXCLUDEFROMCAPTURE);
+        if(!SetWindowDisplayAffinity(card,WDA_EXCLUDEFROMCAPTURE)) Diagnostics::Write("overlay.SetWindowDisplayAffinity card",GetLastError());
+        if(!SetWindowDisplayAffinity(pin,WDA_EXCLUDEFROMCAPTURE)) Diagnostics::Write("overlay.SetWindowDisplayAffinity pin",GetLastError());
         // Tick refreshes window position and foreground state every frame.
         lastTick=GetTickCount64(); dirty=true;
         return true;
@@ -390,7 +409,7 @@ namespace Overlay
             target=game; targetPid=0;
             if (target) GetWindowThreadProcessId(target,&targetPid);
             lastSearch=now;
-            if (target!=previousTarget) { offsetX=offsetY=16; dirty=true; previousTarget=target; }
+            if (target!=previousTarget) { Diagnostics::Write(target?"overlay.game detected":"overlay.game lost");offsetX=offsetY=16; dirty=true; previousTarget=target; }
         }
         Refresh();
     }

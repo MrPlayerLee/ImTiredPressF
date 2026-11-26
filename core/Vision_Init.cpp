@@ -1,4 +1,5 @@
-﻿#include "WinRtCompatibility.h"
+﻿#include "../shared/Diagnostics.h"
+#include "WinRtCompatibility.h"
 #include "Common_OpenCV.h"
 
 //=========================================================
@@ -52,7 +53,7 @@ namespace Vision
             winrt::init_apartment(winrt::apartment_type::multi_threaded);
             g_apartmentInitialized = true;
         }
-        catch (...) { return false; }
+        catch (...) { Diagnostics::Write("OCR.init_apartment",winrt::to_hresult());return false; }
 
         //-------------------------------------------------
         // 상태 초기화
@@ -75,7 +76,8 @@ namespace Vision
                 g_ocrInitialized = true;
             }
         }
-        catch (...) { /* ignore OCR init failures */ }
+        catch (...) { Diagnostics::Write("OCR.create engine",winrt::to_hresult()); }
+        if(!g_ocrInitialized) Diagnostics::Write("OCR.no engine for profile languages");
 
         return g_ocrInitialized;
     }

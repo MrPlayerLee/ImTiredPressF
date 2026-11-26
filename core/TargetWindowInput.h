@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "../shared/Diagnostics.h"
 #include "FocusController.h"
 class TargetWindowInput final : public FocusPlatform
     {
@@ -29,6 +30,7 @@ class TargetWindowInput final : public FocusPlatform
             bool ok = SendMessageTimeoutW(w, message, wp, lp,
                 SMTO_ABORTIFHUNG | SMTO_BLOCK | SMTO_ERRORONEXIT, 100, &result) != 0;
             lastSendError = ok ? ERROR_SUCCESS : GetLastError();
+            if (!ok) { ITPF_DIAG("input.SendMessageTimeout",lastSendError); }
             if (!ok) inputError = L"상태 : 게임 메시지 응답 실패 / 정리 재시도";
             return ok;
         }

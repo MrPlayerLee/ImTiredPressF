@@ -1,4 +1,5 @@
-﻿#include "Common.h"
+﻿#include "../shared/Diagnostics.h"
+#include "Common.h"
 #include "Common_OpenCV.h"
 #include "FocusController.h"
 #include "TargetWindowInput.h"
@@ -31,6 +32,7 @@ void StartMacro()
     if (!game) game = FindWindowW(nullptr, L"Genshin Impact");
     if (!game)
     {
+        Diagnostics::Write("macro.start game window missing");
         inputError = L"상태 : 원신 창을 찾을 수 없습니다.";
         return;
     }
@@ -57,6 +59,7 @@ void HandleMacroSample(WPARAM token, LPARAM sample)
     if (sample < 0)
     {
         StopMacro();
+        Diagnostics::Write(sample==-1?"macro.game window lost":"macro.capture or OCR failed");
         inputError = sample == -1 ? L"상태 : 게임 창을 찾을 수 없습니다."
                                   : L"상태 : 화면 캡처/OCR 실패 - 입력 중지";
         return;
@@ -155,7 +158,7 @@ DWORD WINAPI MacroThread(LPVOID)
                     sample = static_cast<LPARAM>(Vision::GetScore() * 2.0);
                 }
             }
-            catch (...) { sample = -2; }
+            catch (...) { ITPF_DIAG("macro.vision exception",0); sample = -2; }
         }
         if (!g_exitThread.load() && g_isRunning.load() && token == generation.load())
             PostMessageW(g_hWnd, WM_MACRO_SAMPLE, token, sample);

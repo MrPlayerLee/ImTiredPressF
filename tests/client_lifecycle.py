@@ -16,7 +16,8 @@ def run():
         folder=Path(tmp); exe=folder/"ImTiredPressF(MCP).exe"; dll=folder/"ImTiredPressF.dll"
         shutil.copy2(build/exe.name,exe)
         si=subprocess.STARTUPINFO();si.dwFlags=subprocess.STARTF_USESHOWWINDOW;si.wShowWindow=0
-        app=subprocess.Popen([str(exe)],cwd=folder,startupinfo=si)
+        app=subprocess.Popen([str(exe)],cwd=folder,startupinfo=si,env={**os.environ,"LOCALAPPDATA":str(folder)})
+        log=folder/"ImTiredPressF/ImTiredPressF.log"
         server=subprocess.Popen([sys.executable,"-I",str(repo/"tools/mcp_server.py"),"--pid",str(app.pid)],
                 stdin=subprocess.PIPE,stdout=subprocess.PIPE,encoding="utf-8")
         seq=0
@@ -79,6 +80,16 @@ def run():
                 s=wait(lambda s:s["core_loaded"] and s["buttons"]["start"]["enabled"])
                 assert s["signature_status"]=="verified"
                 assert s["labels"]["core_current"]["text"]==".".join(map(str,manifest_version("core")))
+                if turn==0:
+                    acquired=u.RegisterHotKey(None,791,1,ord("F"))
+                    try:
+                        call("click_button",button="hotkeys")
+                        report=log.read_text()
+                        assert "hotkey.RegisterHotKey Alt+F code=1409" in report,report
+                        assert "dll_missing" not in report
+                        print("PASS Alt+F conflict captured with Win32 error 1409")
+                    finally:
+                        if acquired:u.UnregisterHotKey(None,791)
                 assert call("set_overlay_size",percent=125+turn)["overlay_scale"]["value"]==125+turn
                 assert call("click_button",button="unload")["ok"]
                 s=wait(lambda s:not s["core_loaded"] and not s["unloading"])

@@ -1,4 +1,5 @@
-﻿#include "Client.h"
+﻿#include "../shared/Diagnostics.h"
+#include "Client.h"
 #include "PanelSkin.h"
 #include <commctrl.h>
 #include <algorithm>
@@ -122,7 +123,7 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp)
             } break;
         case IDC_ALTFSTOP:
             if(Client::core && !Client::unloading && !Client::core->hotkeys(IsDlgButtonChecked(hwnd,IDC_ALTFSTOP)==BST_CHECKED)) {
-                CheckDlgButton(hwnd,IDC_ALTFSTOP,BST_UNCHECKED); Client::notice=L"상태 : 단축키 등록 실패";
+                CheckDlgButton(hwnd,IDC_ALTFSTOP,BST_UNCHECKED); Client::notice=L"상태 : 단축키 등록 실패 · ImTiredPressF.log 확인";
             } break;
         }
         Client::Poll(); return 0;
@@ -157,11 +158,11 @@ bool CreateMainWindow(HINSTANCE module,int show)
 {
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     INITCOMMONCONTROLSEX cc{sizeof(cc),ICC_BAR_CLASSES|ICC_WIN95_CLASSES};
-    if(!InitCommonControlsEx(&cc) || !PanelSkin::Initialize(module)) return false;
+    if(!InitCommonControlsEx(&cc) || !PanelSkin::Initialize(module)) { Diagnostics::Write("UI common controls or skin initialization",GetLastError());return false; }
     WNDCLASSW wc{};
     wc.lpfnWndProc=WndProc; wc.hInstance=module; wc.lpszClassName=ClassName;
     wc.hIcon=LoadIconW(module,MAKEINTRESOURCEW(1)); wc.hCursor=LoadCursor(nullptr,IDC_ARROW); wc.style=CS_DBLCLKS;
-    if(!RegisterClassW(&wc)) { PanelSkin::Shutdown(); return false; }
+    if(!RegisterClassW(&wc)) {Diagnostics::Write("UI.RegisterClass",GetLastError()); PanelSkin::Shutdown(); return false; }
     RECT work{}; SystemParametersInfoW(SPI_GETWORKAREA,0,&work,0);
     const float factor=std::min({GetDpiForSystem()/96.f,(work.right-work.left)/float(PanelSkin::Width),
                                  (work.bottom-work.top)/float(PanelSkin::Height)});
@@ -169,21 +170,21 @@ bool CreateMainWindow(HINSTANCE module,int show)
     g_hWnd=CreateWindowExW(WS_EX_APPWINDOW,ClassName,Title,
         WS_POPUP|WS_CLIPCHILDREN|WS_SYSMENU|WS_MINIMIZEBOX|WS_MAXIMIZEBOX,
         work.left+(work.right-work.left-w)/2,work.top+(work.bottom-work.top-h)/2,w,h,nullptr,nullptr,module,nullptr);
-    if(!g_hWnd) { PanelSkin::Shutdown(); return false; }
+    if(!g_hWnd) {Diagnostics::Write("UI.CreateWindow",GetLastError()); PanelSkin::Shutdown(); return false; }
     PanelSkin::SetLayout(g_hWnd);
     for(const auto& c : controls) {
         RECT r=PanelSkin::Bounds(c.id);
         HWND child=CreateWindowExW(0,c.type,c.text,WS_CHILD|WS_VISIBLE|c.style,
             r.left,r.top,r.right-r.left,r.bottom-r.top,g_hWnd,reinterpret_cast<HMENU>(static_cast<INT_PTR>(c.id)),module,nullptr);
-        if(!child || !SetWindowSubclass(child,SkinControl,1,0)) {DestroyWindow(g_hWnd); return false;}
+        if(!child || !SetWindowSubclass(child,SkinControl,1,0)) {Diagnostics::Write("UI.control/subclass",GetLastError());DestroyWindow(g_hWnd); return false;}
     }
     g_hStatus=GetDlgItem(g_hWnd,IDC_STATUS); g_hStart=GetDlgItem(g_hWnd,IDC_START); g_hStop=GetDlgItem(g_hWnd,IDC_STOP);
     HWND slider=GetDlgItem(g_hWnd,IDC_OVERLAY_SCALE);
     SendMessageW(slider,TBM_SETRANGE,TRUE,MAKELPARAM(60,200)); SendMessageW(slider,TBM_SETPOS,TRUE,100);
-    if(!SetTimer(g_hWnd,UiTimer,50,nullptr)) { DestroyWindow(g_hWnd); return false; }
+    if(!SetTimer(g_hWnd,UiTimer,50,nullptr)) {Diagnostics::Write("UI.SetTimer",GetLastError()); DestroyWindow(g_hWnd); return false; }
     Client::Load();
 #if ITPF_MCP
-    if(!Bridge::Open(g_hWnd)) Client::notice=L"상태 : MCP 연결 초기화 실패";
+    if(!Bridge::Open(g_hWnd)) { Diagnostics::Write("MCP.initialize",GetLastError()); Client::notice=L"상태 : MCP 연결 초기화 실패"; }
 #endif
     Client::Poll();
     Layout(g_hWnd); ShowWindow(g_hWnd,show); UpdateWindow(g_hWnd); return true;

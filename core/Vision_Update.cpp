@@ -1,3 +1,4 @@
+#include "../shared/Diagnostics.h"
 #include "WinRtCompatibility.h"
 #include "Common_OpenCV.h"
 #include "Common.h"
@@ -85,6 +86,7 @@ namespace Vision
         }
         catch (...)
         {
+            ITPF_DIAG("vision.capture/recognition exception",winrt::to_hresult());
             ResetDetection();
             g_score = -1.0;
         }

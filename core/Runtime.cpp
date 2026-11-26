@@ -1,3 +1,4 @@
+#include "../shared/Diagnostics.h"
 #include "Common.h"
 #include "Overlay.h"
 #include "../shared/CoreApi.h"
@@ -20,10 +21,16 @@ void ReleaseResources()
 bool Open(HWND owner)
 {
     g_hWnd=owner;
-    if(Overlay::Initialize(owner) && SetTimer(owner,CoreMacroTimer,30,nullptr) &&
-       SetTimer(owner,CoreOverlayTimer,16,nullptr)) {
+    if(!Overlay::Initialize(owner)) {
+        Diagnostics::Write("core.overlay initialization failed");
+    } else if(!SetTimer(owner,CoreMacroTimer,30,nullptr)) {
+        Diagnostics::Write("core.SetTimer macro",GetLastError());
+    } else if(!SetTimer(owner,CoreOverlayTimer,16,nullptr)) {
+        Diagnostics::Write("core.SetTimer overlay",GetLastError());
+    } else {
         g_hMacroThread=CreateThread(nullptr,0,MacroThread,nullptr,0,nullptr);
-        if(g_hMacroThread) return true;
+        if(g_hMacroThread)return true;
+        Diagnostics::Write("core.CreateThread macro",GetLastError());
     }
     ReleaseResources(); return false;
 }
@@ -31,10 +38,12 @@ bool Hotkeys(bool enable)
 {
     if(enable==g_enableAltF.load()) return true;
     if(enable) {
-        if(!RegisterHotKey(g_hWnd,IDHOT_ALT_F,MOD_ALT|MOD_NOREPEAT,'F')) return false;
+        if(!RegisterHotKey(g_hWnd,IDHOT_ALT_F,MOD_ALT|MOD_NOREPEAT,'F')) { Diagnostics::Write("hotkey.RegisterHotKey Alt+F",GetLastError()); return false; }
         if(!RegisterHotKey(g_hWnd,IDHOT_ALT_G,MOD_ALT|MOD_NOREPEAT,'G')) {
+            Diagnostics::Write("hotkey.RegisterHotKey Alt+G",GetLastError());
             UnregisterHotKey(g_hWnd,IDHOT_ALT_F); return false;
         }
+        Diagnostics::Write("hotkey.registered Alt+F and Alt+G");
     } else { UnregisterHotKey(g_hWnd,IDHOT_ALT_F); UnregisterHotKey(g_hWnd,IDHOT_ALT_G); }
     g_enableAltF=enable; return true;
 }

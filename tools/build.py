@@ -69,6 +69,10 @@ def audit(folder):
         forbidden=("opencv_world","msvcp140","vcruntime140","ncryptsignhash","bcryptsignhash","ncryptexportkey")
         if any(word in imports for word in forbidden):raise ValueError(f"Unexpected import in {name}")
         payload=(folder/name).read_bytes()
+        profile=str(Path.home())
+        for prefix in {profile,profile.replace("\\","/")}:
+            if any(prefix.lower().encode(enc) in payload.lower() for enc in ("utf-8","utf-16le")):
+                raise ValueError(f"Local profile path embedded in {name}")
         if b"-----BEGIN PRIVATE KEY-----" in payload or b"-----BEGIN EC PRIVATE KEY-----" in payload or re.search(rb"(?:gh[pousr]_[A-Za-z0-9]{32,}|github_pat_[A-Za-z0-9_]{50,})",payload):
             raise ValueError(f"Credential marker in {name}")
         if name in (FILES[0],MCP):

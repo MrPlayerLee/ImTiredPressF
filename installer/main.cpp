@@ -1,3 +1,4 @@
+#include "../shared/Diagnostics.h"
 #include "../shared/ClientVariant.h"
 #include "../client/ReleaseDownload.h"
 #include "Restart.h"
@@ -68,6 +69,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int)
         if (!args.dll) Restart(folder, package.release);
         return 0;
     } catch (const std::exception& e) {
+        Diagnostics::Write(e.what());
         if (std::string(e.what()) == "client_required") return 2;
         auto text = std::wstring(L"업데이트에 실패했습니다.\n") + Trust::Message(e.what()) +
             L" (" + std::wstring(e.what(), e.what()+strlen(e.what())) + L")";

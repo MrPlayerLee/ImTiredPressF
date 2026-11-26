@@ -1,3 +1,4 @@
+#include "../shared/Diagnostics.h"
 #include "Common_OpenCV.h"
 
 namespace
@@ -56,7 +57,7 @@ namespace Capture
         outputImage.release();
         if (!hwnd || !IsWindow(hwnd)) return false;
         RECT rect{};
-        if (!GetClientRect(hwnd, &rect)) return false;
+        if (!GetClientRect(hwnd, &rect)) { ITPF_DIAG("capture.GetClientRect",GetLastError());return false; }
         const int width = rect.right - rect.left;
         const int height = rect.bottom - rect.top;
         if (width <= 0 || height <= 0) return false;
@@ -64,13 +65,13 @@ namespace Capture
         CaptureResources resources;
         resources.window = hwnd;
         resources.windowDC = GetDC(hwnd);
-        if (!resources.windowDC) return false;
+        if (!resources.windowDC) { ITPF_DIAG("capture.GetDC",GetLastError());return false; }
         resources.memoryDC = CreateCompatibleDC(resources.windowDC);
-        if (!resources.memoryDC) return false;
+        if (!resources.memoryDC) { ITPF_DIAG("capture.CreateCompatibleDC",GetLastError());return false; }
         resources.bitmap = CreateCompatibleBitmap(resources.windowDC, width, height);
-        if (!resources.bitmap) return false;
+        if (!resources.bitmap) { ITPF_DIAG("capture.CreateCompatibleBitmap",GetLastError());return false; }
         resources.previous = SelectObject(resources.memoryDC, resources.bitmap);
-        if (!resources.previous || resources.previous == HGDI_ERROR) return false;
+        if (!resources.previous || resources.previous == HGDI_ERROR) { ITPF_DIAG("capture.SelectObject",GetLastError());return false; }
         resources.selected = true;
 
         // Preserve the existing backend order and client-area coordinates.
@@ -79,6 +80,7 @@ namespace Capture
             success = BitBlt(resources.memoryDC, 0, 0, width, height,
                              resources.windowDC, 0, 0, SRCCOPY);
 
+        if(!success){ ITPF_DIAG("capture.PrintWindow and BitBlt failed",GetLastError()); }
         if (!resources.Deselect() || !success) return false;
         return ConvertBitmapToMat(resources.windowDC, resources.bitmap, width, height,
                                   outputImage) && !outputImage.empty();
