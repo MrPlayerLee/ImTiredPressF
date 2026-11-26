@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{CF5B7E41-BD88-448C-A690-E09DC8125FBE}</ProjectGuid><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><Component>core</Component><ConfigurationType>DynamicLibrary</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet><UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\Project.props" />
+  <ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>$(OpenCvRoot)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile><Link><SubSystem>Windows</SubSystem><AdditionalLibraryDirectories>$(StaticCv);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories><AdditionalDependencies>user32.lib;gdi32.lib;gdiplus.lib;runtimeobject.lib;windowsapp.lib;opencv_imgproc4120.lib;opencv_core4120.lib;zlib.lib;advapi32.lib;ole32.lib;oleaut32.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Notices.rc"><AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ResourceCompile>
+    <ClCompile Include="Capture.cpp" />
+    <ClCompile Include="Macro.cpp" />
+    <ClCompile Include="Overlay.cpp" />
+    <ClCompile Include="Runtime.cpp" />
+    <ClCompile Include="Vision_Init.cpp" />
+    <ClCompile Include="Vision_Update.cpp" />
+    <ClInclude Include="Common.h" />
+    <ClInclude Include="Common_OpenCV.h" />
+    <ClInclude Include="DialogueDetection.h" />
+    <ClInclude Include="FocusController.h" />
+    <ClInclude Include="Overlay.h" />
+    <ClInclude Include="OverlayLayout.h" />
+    <ClInclude Include="TargetWindowInput.h" />
+    <ClInclude Include="WinRtCompatibility.h" />
+    
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

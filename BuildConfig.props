@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <RepositoryUrl>https://github.com/MrPlayerLee/ImTiredPressF</RepositoryUrl>
+    <EnableMcp Condition="'$(EnableMcp)'==''">true</EnableMcp>
+    <!-- Official builds supply a 72-byte BCRYPT_ECCPUBLIC_BLOB via /p:ReleasePublicKey=... -->
+  </PropertyGroup>
+</Project>

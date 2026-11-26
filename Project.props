@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)BuildConfig.props" />
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <StaticCv>$(LOCALAPPDATA)\ImTiredPressF\opencv-4.12-static-v143\lib</StaticCv>
+    <OutDir>$(RepoRoot)x64\$(Configuration)\</OutDir>
+    <IntDir>$(RepoRoot)build\obj\$(MSBuildProjectName)\$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>ImTiredPressF</TargetName>
+    <OpenCvRoot Condition="'$(OpenCvRoot)'=='' and '$(OPENCV_ROOT)'!=''">$(OPENCV_ROOT)</OpenCvRoot>
+    <OpenCvRoot Condition="'$(OpenCvRoot)'==''">E:\OpenCV\opencv\build</OpenCvRoot>
+    <CvSuffix Condition="'$(Configuration)'=='Debug'">d</CvSuffix>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><RuntimeLibrary>MultiThreaded</RuntimeLibrary><LanguageStandard>stdcpp17</LanguageStandard><WarningLevel>Level3</WarningLevel><ExceptionHandling>Sync</ExceptionHandling><PreprocessorDefinitions>UNICODE;_UNICODE;NOMINMAX;_ITERATOR_DEBUG_LEVEL=0;CV_IGNORE_DEBUG_BUILD_GUARD;%(PreprocessorDefinitions)</PreprocessorDefinitions><DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings></ClCompile>
+    <Link><AdditionalOptions>/DEPENDENTLOADFLAG:0x800 %(AdditionalOptions)</AdditionalOptions><ProgramDatabaseFile>$(OutDir)$(MSBuildProjectName).pdb</ProgramDatabaseFile></Link>
+  </ItemDefinitionGroup>
+  <Target Name="GenerateVersion" Condition="'$(Component)'!='installer'" BeforeTargets="ResourceCompile" Inputs="$(RepoRoot)VERSION_AGENT.md;$(RepoRoot)tools\version.py" Outputs="$(IntDir)version.rc">
+    <MakeDir Directories="$(IntDir)" />
+    <Exec Command="python &quot;$(RepoRoot)tools\version.py&quot; generate $(Component) &quot;$(IntDir).&quot;" />
+  </Target>
+  <ItemGroup><UpToDateCheckInput Include="$(RepoRoot)VERSION_AGENT.md;$(RepoRoot)tools\version.py" /><ResourceCompile Condition="'$(Component)'!='installer'" Include="$(IntDir)version.rc" /></ItemGroup>
+  <Target Name="PrepareStaticOpenCv" BeforeTargets="ClCompile" Condition="'$(Component)'=='core'">
+    <Exec Command="python &quot;$(RepoRoot)tools\static_cv.py&quot;" />
+  </Target>
+  <Target Name="PrepareTrust" BeforeTargets="ClCompile" Condition="'$(Component)'!='core'">
+    <Error Condition="'$(EnableMcp)'!='true' and '$(EnableMcp)'!='false'" Text="EnableMcp must be true or false." />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(RepoRoot)tools\sign.ps1&quot; prepare &quot;$(IntDir).&quot; -PublicFile &quot;$(ReleasePublicKey)&quot;" />
+  </Target>
+</Project>

@@ -1,0 +1,28 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImTiredPressF", "client\ImTiredPressF.vcxproj", "{8EF852A3-0C41-4068-AD25-97E4F7F0400C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImTiredPressF.Core", "core\ImTiredPressF.Core.vcxproj", "{CF5B7E41-BD88-448C-A690-E09DC8125FBE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Update_Installer", "installer\Update_Installer.vcxproj", "{355D7D02-85C8-4F66-A979-A7457A0F73F1}"
+EndProject
+Global
+ GlobalSection(SolutionConfigurationPlatforms) = preSolution
+  Debug|x64 = Debug|x64
+  Release|x64 = Release|x64
+ EndGlobalSection
+ GlobalSection(ProjectConfigurationPlatforms) = postSolution
+  {8EF852A3-0C41-4068-AD25-97E4F7F0400C}.Release|x64.ActiveCfg = Release|x64
+  {8EF852A3-0C41-4068-AD25-97E4F7F0400C}.Release|x64.Build.0 = Release|x64
+  {8EF852A3-0C41-4068-AD25-97E4F7F0400C}.Debug|x64.ActiveCfg = Debug|x64
+  {8EF852A3-0C41-4068-AD25-97E4F7F0400C}.Debug|x64.Build.0 = Debug|x64
+  {CF5B7E41-BD88-448C-A690-E09DC8125FBE}.Release|x64.ActiveCfg = Release|x64
+  {CF5B7E41-BD88-448C-A690-E09DC8125FBE}.Release|x64.Build.0 = Release|x64
+  {CF5B7E41-BD88-448C-A690-E09DC8125FBE}.Debug|x64.ActiveCfg = Debug|x64
+  {CF5B7E41-BD88-448C-A690-E09DC8125FBE}.Debug|x64.Build.0 = Debug|x64
+  {355D7D02-85C8-4F66-A979-A7457A0F73F1}.Release|x64.ActiveCfg = Release|x64
+  {355D7D02-85C8-4F66-A979-A7457A0F73F1}.Release|x64.Build.0 = Release|x64
+  {355D7D02-85C8-4F66-A979-A7457A0F73F1}.Debug|x64.ActiveCfg = Debug|x64
+  {355D7D02-85C8-4F66-A979-A7457A0F73F1}.Debug|x64.Build.0 = Debug|x64
+ EndGlobalSection
+EndGlobal
