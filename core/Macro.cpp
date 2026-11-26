@@ -11,6 +11,7 @@ namespace
     bool closing = false;
     bool startRequested = false;
     bool inputAllowed = false;
+    bool retryingVision = false;
     double displayedScore = 0.0;
     const wchar_t* inputError = nullptr;
 
@@ -39,6 +40,7 @@ void StartMacro()
     g_gameHwnd = game;
     ++generation;
     inputAllowed = false;
+    retryingVision = false;
     displayedScore = 0.0;
     inputError = nullptr;
     g_isRunning = true;
@@ -56,6 +58,18 @@ void StopMacro()
 void HandleMacroSample(WPARAM token, LPARAM sample)
 {
     if (closing || !g_isRunning.load() || token != generation.load()) return;
+    if (sample == -2 && !retryingVision)
+    {
+        // A capture or OCR error invalidates the last input decision immediately.
+        // The worker resets detection on error and samples again on its normal timer.
+        retryingVision = true;
+        inputAllowed = false;
+        pulse.Stop();
+        displayedScore = 0.5;
+        Diagnostics::Write("macro.capture or OCR failed; input paused for one retry");
+        return;
+    }
+    retryingVision = false;
     if (sample < 0)
     {
         StopMacro();

@@ -24,7 +24,11 @@ namespace
         bool Deselect()
         {
             HGDIOBJ result = SelectObject(memoryDC, previous);
-            if (!result || result == HGDI_ERROR) return false;
+            if (!result || result == HGDI_ERROR)
+            {
+                ITPF_DIAG("capture.deselect bitmap", GetLastError());
+                return false;
+            }
             selected = false;
             return true;
         }
@@ -43,8 +47,17 @@ namespace
 
         cv::Mat image(height, width, CV_8UC4);
         // GetDIBits requires the bitmap to be deselected from all DCs.
-        if (GetDIBits(dc, bitmap, 0, static_cast<UINT>(height), image.data,
-                      &info, DIB_RGB_COLORS) != height) return false;
+        SetLastError(ERROR_SUCCESS);
+        int rows = GetDIBits(dc, bitmap, 0, static_cast<UINT>(height), image.data,
+                             &info, DIB_RGB_COLORS);
+        if (rows != height)
+        {
+            DWORD error = GetLastError();
+            char event[128]{};
+            sprintf_s(event, "capture.GetDIBits size=%dx%d copiedRows=%d", width, height, rows);
+            Diagnostics::Write(event, error);
+            return false;
+        }
         cv::cvtColor(image, outputImage, cv::COLOR_BGRA2GRAY);
         return true;
     }
@@ -55,12 +68,12 @@ namespace Capture
     bool CaptureClient(HWND hwnd, cv::Mat& outputImage)
     {
         outputImage.release();
-        if (!hwnd || !IsWindow(hwnd)) return false;
+        if (!hwnd || !IsWindow(hwnd)) { ITPF_DIAG("capture.invalid window", ERROR_INVALID_WINDOW_HANDLE); return false; }
         RECT rect{};
         if (!GetClientRect(hwnd, &rect)) { ITPF_DIAG("capture.GetClientRect",GetLastError());return false; }
         const int width = rect.right - rect.left;
         const int height = rect.bottom - rect.top;
-        if (width <= 0 || height <= 0) return false;
+        if (width <= 0 || height <= 0) { ITPF_DIAG("capture.empty client area", 0); return false; }
 
         CaptureResources resources;
         resources.window = hwnd;
@@ -77,8 +90,11 @@ namespace Capture
         // Preserve the existing backend order and client-area coordinates.
         BOOL success = PrintWindow(hwnd, resources.memoryDC, PW_CLIENTONLY);
         if (!success)
+        {
+            ITPF_DIAG("capture.PrintWindow failed; trying BitBlt", GetLastError());
             success = BitBlt(resources.memoryDC, 0, 0, width, height,
                              resources.windowDC, 0, 0, SRCCOPY);
+        }
 
         if(!success){ ITPF_DIAG("capture.PrintWindow and BitBlt failed",GetLastError()); }
         if (!resources.Deselect() || !success) return false;

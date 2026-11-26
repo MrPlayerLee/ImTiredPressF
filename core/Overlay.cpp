@@ -235,7 +235,6 @@ namespace
 
     void Refresh()
     {
-        if(!pin)Diagnostics::Write("overlay.CreateWindow pin",GetLastError());
         if (!card || !pin) return;
         if (!IsWindowVisible(controller)) { ITPF_DIAG("overlay.hidden controller not visible",0); Hide(); return; }
         if (!target || !IsWindow(target)) { ITPF_DIAG("overlay.no matching game window",0); Hide(); return; }
@@ -275,11 +274,16 @@ namespace
         }
         // Show in the correct order atomically, without ShowWindow raising an
         // initially hidden popup above unrelated applications.
+        const bool restoring = !IsWindowVisible(card) || !IsWindowVisible(pin);
         StackAboveTarget();
-        if(redraw) {
-            char summary[160]{};
-            sprintf_s(summary,"overlay.render game=%dx%d card=%dx%d visible=%d pinVisible=%d",
-                      width,height,layout.width,layout.height,!!IsWindowVisible(card),!!IsWindowVisible(pin));
+        if (redraw || restoring) {
+            char summary[256]{};
+            sprintf_s(summary,"overlay.render game=%dx%d card=%dx%d visible=%d pinVisible=%d "
+                      "onMonitor=%d cardDirectlyAboveGame=%d gameForeground=%d gameTopmost=%d",
+                      width,height,layout.width,layout.height,!!IsWindowVisible(card),!!IsWindowVisible(pin),
+                      MonitorFromWindow(card,MONITOR_DEFAULTTONULL)!=nullptr,
+                      GetWindow(target,GW_HWNDPREV)==card, GetAncestor(GetForegroundWindow(),GA_ROOT)==target,
+                      !!(GetWindowLongPtrW(target,GWL_EXSTYLE)&WS_EX_TOPMOST));
             ITPF_DIAG(summary,0);
         }
     }

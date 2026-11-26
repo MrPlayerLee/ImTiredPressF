@@ -95,6 +95,20 @@ int main()
         Check(Capture::CaptureClient(window, image), "repeated capture succeeds");
     Check(GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS) == resources,
           "repeated captures do not retain GDI objects");
+    // Use a window owned by this thread so PrintWindow can complete synchronously.
+    // A machine without an installed OCR recognizer can still test capture and retry.
+    if (Vision::Initialize())
+    {
+        Vision::Update(window);
+        Check(Vision::GetScore() >= 0, "capture, preprocess and recognize a private test frame");
+        Vision::Update(nullptr);
+        Check(Vision::GetScore() < 0, "invalid frame pauses detection");
+        Vision::Update(window);
+        Check(Vision::GetScore() == 0.5, "first valid frame after an error starts fresh");
+        std::cout << "PASS Windows OCR on private frames before and after capture failure.\n";
+    }
+    else std::cout << "SKIP live OCR: Windows OCR initialization unavailable.\n";
+    Vision::Shutdown();
     DestroyWindow(window);
     Check(!Capture::CaptureClient(window, image) && image.empty(),
           "destroyed capture target clears previous image");
@@ -137,6 +151,15 @@ int main()
     Check(g_isRunning.load(),"new-session detection waits without stopping");
     HandleMacroSample(3,0);
     Check(!g_isRunning.load() && IsWindow(g_hWnd),"second session can stop independently");
+    g_isRunning=true;
+    HandleMacroSample(4,-2);
+    Check(g_isRunning.load() && GetMacroIndicator()==MacroIndicator::Ready,
+          "one failed frame pauses input without ending the session");
+    HandleMacroSample(4,1);
+    HandleMacroSample(4,-2);
+    Check(g_isRunning.load(), "valid frame clears consecutive error count");
+    HandleMacroSample(4,-2);
+    Check(!g_isRunning.load(), "consecutive failures stop the session");
     g_enableAltF=false;
     Check(g_hMacroThread != nullptr, "create production OCR worker");
     int macroTicks = 0;
