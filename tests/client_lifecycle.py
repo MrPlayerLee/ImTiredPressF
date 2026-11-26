@@ -86,6 +86,7 @@ def run():
                         call("click_button",button="hotkeys")
                         report=log.read_text()
                         assert "hotkey.RegisterHotKey Alt+F code=1409" in report,report
+                        assert "Z local=" in report
                         assert "dll_missing" not in report
                         print("PASS Alt+F conflict captured with Win32 error 1409")
                     finally:
@@ -95,7 +96,7 @@ def run():
                     try:
                         call("click_button",button="hotkeys")
                         s=state()
-                        assert s["buttons"]["hotkeys"]["checked"] and "Alt+G" in s["labels"]["status"]["text"],s
+                        assert s["buttons"]["hotkeys"]["checked"] and "Alt+G 이미 사용 중" in s["labels"]["status"]["text"],s
                         assert "hotkey.RegisterHotKey Alt+G code=1409" in log.read_text()
                         assert not u.RegisterHotKey(None,793,1,ord("F")), "Alt+F registration was lost"
                         call("click_button",button="hotkeys")

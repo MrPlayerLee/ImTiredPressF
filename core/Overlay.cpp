@@ -26,6 +26,33 @@ namespace
     bool drawnAuto = false;
     SIZE drawnSize{};
     DWORD targetPid = 0;
+    ULONGLONG nextMissingCheck = 0, nextMissingReminder = 0;
+    char lastMissingReport[256]{};
+
+    void ExplainMissingGame(ULONGLONG now)
+    {
+        if (now < nextMissingCheck) return;
+        nextMissingCheck = now + 10000;
+        GameWindow::MissingReport report{};
+        DWORD error = GameWindow::InspectMissing(report);
+        if (error) { ITPF_DIAG("overlay.inspect game processes/windows", error); return; }
+        const char* reason = "no window on this desktop";
+        if (!report.processes) reason = "supported game process not found";
+        else if (report.imageError) reason = "cannot verify game window process";
+        else if (report.eligible) reason = "eligible window seen on diagnostic rescan";
+        else if (report.hidden || report.tool || report.owned || report.tooSmall || report.noRect)
+            reason = "game windows excluded";
+        char summary[256]{};
+        sprintf_s(summary, "overlay.search %s processes=%lu hidden=%lu tool=%lu ownedNonUnity=%lu "
+                  "tooSmall=%lu noClientRect=%lu eligible=%lu imageError=%lu",
+                  reason, report.processes, report.hidden, report.tool, report.owned, report.tooSmall,
+                  report.noRect, report.eligible, report.imageError);
+        if (strcmp(lastMissingReport,summary) || now >= nextMissingReminder) {
+            Diagnostics::Write(summary, report.imageError);
+            strcpy_s(lastMissingReport,summary);
+            nextMissingReminder = now + 300000;
+        }
+    }
 
     struct Surface
     {
@@ -369,6 +396,8 @@ namespace Overlay
         if (pin) DestroyWindow(pin);
         if (card) DestroyWindow(card);
         pin=card=controller=target=previousTarget=nullptr;
+        lastSearch=nextMissingCheck=nextMissingReminder=0;
+        lastMissingReport[0]='\0';
         UnregisterClassW(L"ImTiredPressF_Overlay",reinterpret_cast<HINSTANCE>(&__ImageBase));
         overlayFace.reset();fontCollection.reset();
         if (graphicsToken) Gdiplus::GdiplusShutdown(graphicsToken);
@@ -386,7 +415,11 @@ namespace Overlay
         if (!lastSearch || now-lastSearch>=1000 || (target && !IsWindow(target)))
         {
             target=GameWindow::Find(); targetPid=0;
-            if (target) GetWindowThreadProcessId(target,&targetPid);
+            if (target) {
+                GetWindowThreadProcessId(target,&targetPid);
+                nextMissingCheck=nextMissingReminder=0;
+                lastMissingReport[0]='\0';
+            } else ExplainMissingGame(now);
             lastSearch=now;
             if (target!=previousTarget) { Diagnostics::Write(target?"overlay.game detected":"overlay.game lost");offsetX=offsetY=16; dirty=true; previousTarget=target; }
         }

@@ -26,9 +26,23 @@ Powered by ChatGPT Codex. (GPT-6.2 Astra)
 
 ### Windows 문제를 보고할 때
 
-클라이언트와 공용 코어를 모두 업데이트한 뒤 오류를 한 번 재현하세요. **Win+R**에서 `%LOCALAPPDATA%\ImTiredPressF`를 열고 `ImTiredPressF.log`를 전달하면 됩니다. 기록 시각은 UTC입니다. 로그는 로컬에 저장되며 스크린샷이나 OCR로 읽은 대화 내용은 기록하지 않습니다.
+클라이언트와 공용 코어를 모두 업데이트한 뒤 오류를 한 번 재현하세요. **Win+R**에서 `%LOCALAPPDATA%\ImTiredPressF`를 열고 `ImTiredPressF.log`를 전달하면 됩니다. 줄 앞의 `Z`는 UTC이고 `local=`은 해당 PC의 현지 시각입니다. 로그는 로컬에 저장되며 스크린샷이나 OCR로 읽은 대화 내용은 기록하지 않습니다.
 
 단축키 등록 오류에는 실제로 실패한 조합(Alt+F 또는 Alt+G)과 Windows 오류 코드가 남습니다. 1409는 해당 조합이 이미 등록되어 있다는 뜻입니다. Alt+G만 등록에 실패하면 Alt+F로 시작과 중지를 모두 할 수 있습니다. 게임 창은 창 제목의 언어와 관계없이 실행 파일을 확인해 찾습니다. 오버레이를 확인하려면 게임을 화면에 표시하고 클라이언트를 열어 둔 상태로 몇 초간 기다리세요. 게임 창 탐색, 숨김 조건, 창 생성 및 그리기 실패가 진단 대상입니다. 같은 렌더링 오류는 로그가 매 프레임 늘지 않도록 반복 기록을 제한합니다.
+
+게임을 실행하고 실제 플레이 화면을 띄웠는데 오버레이가 보이지 않으면 10초 정도 기다린 후 `overlay.search`를 확인하세요. `supported game process not found`는 검사 시점에 이 PC에서 지원하는 게임 실행 파일을 찾지 못했다는 뜻입니다. `game windows excluded`에는 숨겨졌거나 너무 작은 창 등 제외 사유별 개수가 함께 표시됩니다.
+
+### 일반판 실행에 필요한 구성 요소
+
+Windows x64에서는 Release ZIP을 한 폴더에 모두 풀어 사용합니다. OpenCV와 C++ 런타임은 빌드에 포함되며 오버레이 글꼴도 내장되어 있습니다. 일반판을 실행하기 위해 Visual Studio, Python, 별도 글꼴이나 VC++ 재배포 패키지를 설치할 필요는 없습니다. 오버레이는 같은 Windows 데스크톱에 열린 로컬 원신 게임 창(`GenshinImpact.exe` 또는 `YuanShen.exe`)에 표시됩니다.
+
+대화 자동 감지는 Windows 문자 인식(OCR)을 사용합니다. 로그에 `OCR.engine ready`가 있으면 인식 엔진이 준비된 상태입니다. `OCR.no installed recognizer languages` 또는 `OCR.no engine for profile languages`가 나오면 Windows 기본 설정 언어 목록의 언어와 일치하는 OCR 기능을 설치하고 앱을 다시 실행하세요. 한국어 Windows에서 한국어가 기본 설정 언어인 경우 관리자 PowerShell에서 다음으로 확인할 수 있습니다.
+
+```powershell
+Get-WindowsCapability -Online -Name 'Language.OCR~~~ko-KR~0.0.1.0'
+```
+
+`State`가 `NotPresent`이면 `Add-WindowsCapability -Online -Name 'Language.OCR~~~ko-KR~0.0.1.0'`로 설치합니다. 다른 언어를 사용하는 경우 해당 언어의 OCR 기능을 선택하세요. [Microsoft의 OCR 언어 설치 안내](https://learn.microsoft.com/windows/powertoys/text-extractor#install-an-ocr-language-pack)
 
 ## 개발자 · 소스에서 빌드
 

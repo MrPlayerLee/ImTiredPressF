@@ -12,6 +12,8 @@
 #define WINRT_IMPL 1
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Globalization.h>
 #include <winrt/Windows.Media.Ocr.h>
 
 
@@ -74,10 +76,13 @@ namespace Vision
             {
                 g_ocrEngine = engine;
                 g_ocrInitialized = true;
+                Diagnostics::Write("OCR.engine ready");
             }
+            else if (winrt::Windows::Media::Ocr::OcrEngine::AvailableRecognizerLanguages().Size() == 0)
+                Diagnostics::Write("OCR.no installed recognizer languages");
+            else Diagnostics::Write("OCR.no engine for profile languages");
         }
         catch (...) { Diagnostics::Write("OCR.create engine",winrt::to_hresult()); }
-        if(!g_ocrInitialized) Diagnostics::Write("OCR.no engine for profile languages");
 
         return g_ocrInitialized;
     }

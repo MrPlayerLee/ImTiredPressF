@@ -10,6 +10,7 @@ std::atomic<bool> g_isRunning{false}, g_exitThread{false}, g_autoDetect{true}, g
 
 namespace {
 bool altGRegistered=false;
+DWORD altGError=ERROR_SUCCESS;
 void ReleaseResources()
 {
     KillTimer(g_hWnd,CoreMacroTimer); KillTimer(g_hWnd,CoreOverlayTimer);
@@ -42,7 +43,8 @@ bool Hotkeys(bool enable)
         if(!RegisterHotKey(g_hWnd,IDHOT_ALT_F,MOD_ALT|MOD_NOREPEAT,'F')) { Diagnostics::Write("hotkey.RegisterHotKey Alt+F",GetLastError()); return false; }
         altGRegistered=RegisterHotKey(g_hWnd,IDHOT_ALT_G,MOD_ALT|MOD_NOREPEAT,'G')!=FALSE;
         if(!altGRegistered) {
-            Diagnostics::Write("hotkey.RegisterHotKey Alt+G",GetLastError());
+            altGError=GetLastError();
+            Diagnostics::Write("hotkey.RegisterHotKey Alt+G",altGError);
             Diagnostics::Write("hotkey.Alt+F remains enabled");
         } else Diagnostics::Write("hotkey.registered Alt+F and Alt+G");
     } else { UnregisterHotKey(g_hWnd,IDHOT_ALT_F); if(altGRegistered)UnregisterHotKey(g_hWnd,IDHOT_ALT_G); altGRegistered=false; }
@@ -69,8 +71,11 @@ void DisableMacroHotkeys(){Hotkeys(false);}
 static const wchar_t* CoreStatus()
 {
     const wchar_t* status=MacroStatus();
-    if(g_enableAltF && !altGRegistered && wcscmp(status,L"상태 : 중지")==0)
+    if(g_enableAltF && !altGRegistered && wcscmp(status,L"상태 : 중지")==0) {
+        if(altGError==ERROR_HOTKEY_ALREADY_REGISTERED)
+            return L"상태 : Alt+F 시작/중지 가능 · Alt+G 이미 사용 중";
         return L"상태 : Alt+F 사용 가능 · Alt+G 등록 실패";
+    }
     return status;
 }
 extern "C" __declspec(dllexport) const CoreApi* WINAPI ImTiredPressF_GetApi(UINT abi)

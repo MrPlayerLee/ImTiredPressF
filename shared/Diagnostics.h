@@ -20,11 +20,16 @@ inline void Write(const char* operation, DWORD code=0) noexcept {
             if(GetFileInformationByHandle(file,&info) && info.nNumberOfLinks==1 &&
                !(info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)) {
                 SYSTEMTIME now{};GetSystemTime(&now);
+                SYSTEMTIME local{};
+                char localTime[48]{};
+                if (SystemTimeToTzSpecificLocalTime(nullptr, &now, &local))
+                    sprintf_s(localTime, " local=%04u-%02u-%02uT%02u:%02u:%02u",
+                              local.wYear, local.wMonth, local.wDay, local.wHour, local.wMinute, local.wSecond);
                 char line[512]{};
                 int n=_snprintf_s(line,sizeof(line),_TRUNCATE,
-                    "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ pid=%lu tid=%lu %s code=%lu (0x%08lX)%s\r\n",
+                    "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ%s pid=%lu tid=%lu %s code=%lu (0x%08lX)%s\r\n",
                     now.wYear,now.wMonth,now.wDay,now.wHour,now.wMinute,now.wSecond,now.wMilliseconds,
-                    GetCurrentProcessId(),GetCurrentThreadId(),operation,code,code,
+                    localTime,GetCurrentProcessId(),GetCurrentThreadId(),operation,code,code,
                     code==ERROR_HOTKEY_ALREADY_REGISTERED?" ERROR_HOTKEY_ALREADY_REGISTERED":"");
                 DWORD written{};
                 if(n>0)WriteFile(file,line,n,&written,nullptr);

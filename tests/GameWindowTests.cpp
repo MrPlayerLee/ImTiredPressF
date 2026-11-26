@@ -23,6 +23,20 @@ int wmain(int argc,wchar_t** argv)
     if(GameWindow::Find()!=(supported?localized:nullptr))return 1;
     ShowWindow(localized,SW_HIDE);
     if(GameWindow::Find()!=(supported?fallback:nullptr))return 1;
+    auto ownedUnity=create(unity.lpszClassName,L"Owned render window",0,1000);
+    if(!ownedUnity)return 1;
+    SetWindowLongPtrW(ownedUnity,GWLP_HWNDPARENT,reinterpret_cast<LONG_PTR>(fallback));
+    if(GetWindow(ownedUnity,GW_OWNER)!=fallback || GameWindow::Find()!=(supported?ownedUnity:nullptr))return 1;
+    ShowWindow(localized,SW_SHOWNOACTIVATE);
+    if(GameWindow::Find()!=(supported?localized:nullptr))return 1;
+    ShowWindow(localized,SW_HIDE);
+    DestroyWindow(ownedUnity);
+    ShowWindow(fallback,SW_HIDE);
+    if(GameWindow::Find())return 1;
+    GameWindow::MissingReport report{};
+    if(GameWindow::InspectMissing(report)!=ERROR_SUCCESS)return 1;
+    if(supported && (!report.processes || report.hidden<2 || !report.tool || report.eligible))return 1;
+    std::cout<<"PASS owned Unity window, main window preference and missing-window diagnostics.\n";
     std::cout<<"PASS executable identity, title-independent selection and tool window exclusion.\n";
     return 0;
 }
