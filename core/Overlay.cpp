@@ -260,6 +260,20 @@ namespace
                          0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
     }
 
+    void LogCaptureAffinity(HWND window, const char* name)
+    {
+        DWORD affinity{};
+        char event[96]{};
+        if (GetWindowDisplayAffinity(window, &affinity)) {
+            sprintf_s(event, "overlay.capture %s affinity=0x%08lX", name, affinity);
+            Diagnostics::Write(event);
+        } else {
+            const DWORD error = GetLastError();
+            sprintf_s(event, "overlay.capture %s affinity unavailable", name);
+            Diagnostics::Write(event, error);
+        }
+    }
+
     void Refresh()
     {
         if (!card || !pin) return;
@@ -303,6 +317,10 @@ namespace
         // initially hidden popup above unrelated applications.
         const bool restoring = !IsWindowVisible(card) || !IsWindowVisible(pin);
         StackAboveTarget();
+        if (restoring && IsWindowVisible(card) && IsWindowVisible(pin)) {
+            LogCaptureAffinity(card, "card");
+            LogCaptureAffinity(pin, "pin");
+        }
         if (redraw || restoring) {
             char summary[256]{};
             sprintf_s(summary,"overlay.render game=%dx%d card=%dx%d visible=%d pinVisible=%d "
@@ -381,10 +399,7 @@ namespace Overlay
                             nullptr,nullptr,type.hInstance,nullptr);
         if(!pin)Diagnostics::Write("overlay.CreateWindow pin",GetLastError());
         if (!card || !pin) { Shutdown(); return false; }
-        // Keep this status UI out of supported desktop capture paths so it
-        // does not become part of a captured OCR region after dragging.
-        if(!SetWindowDisplayAffinity(card,WDA_EXCLUDEFROMCAPTURE)) Diagnostics::Write("overlay.SetWindowDisplayAffinity card",GetLastError());
-        if(!SetWindowDisplayAffinity(pin,WDA_EXCLUDEFROMCAPTURE)) Diagnostics::Write("overlay.SetWindowDisplayAffinity pin",GetLastError());
+        // Both new windows use the default WDA_NONE so monitor capture can include them.
         // Tick refreshes window position and foreground state every frame.
         lastTick=GetTickCount64(); dirty=true;
         return true;

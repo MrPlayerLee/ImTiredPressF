@@ -84,6 +84,11 @@ int wmain(int argc,wchar_t** argv)
     target=parent; targetPid=GetCurrentProcessId();
     Refresh();
     Verify(IsWindowVisible(card) && IsWindowVisible(pin),"show overlay for visible private target");
+    for (HWND window : {card,pin}) {
+        DWORD affinity = WDA_EXCLUDEFROMCAPTURE;
+        Verify(GetWindowDisplayAffinity(window,&affinity) && affinity==WDA_NONE,
+               "visible overlay window allows desktop capture");
+    }
     Verify(GetWindow(target,GW_HWNDPREV)==card && GetWindow(card,GW_HWNDPREV)==pin,
            "overlay pair lies directly above target");
     HWND next=covering;
