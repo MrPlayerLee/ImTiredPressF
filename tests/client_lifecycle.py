@@ -90,6 +90,20 @@ def run():
                         print("PASS Alt+F conflict captured with Win32 error 1409")
                     finally:
                         if acquired:u.UnregisterHotKey(None,791)
+                if turn==1:
+                    acquired=u.RegisterHotKey(None,792,1,ord("G"))
+                    try:
+                        call("click_button",button="hotkeys")
+                        s=state()
+                        assert s["buttons"]["hotkeys"]["checked"] and "Alt+G" in s["labels"]["status"]["text"],s
+                        assert "hotkey.RegisterHotKey Alt+G code=1409" in log.read_text()
+                        assert not u.RegisterHotKey(None,793,1,ord("F")), "Alt+F registration was lost"
+                        call("click_button",button="hotkeys")
+                        assert u.RegisterHotKey(None,793,1,ord("F")), "Alt+F registration leaked"
+                        u.UnregisterHotKey(None,793)
+                        print("PASS Alt+G conflict leaves Alt+F registered and usable")
+                    finally:
+                        if acquired:u.UnregisterHotKey(None,792)
                 assert call("set_overlay_size",percent=125+turn)["overlay_scale"]["value"]==125+turn
                 assert call("click_button",button="unload")["ok"]
                 s=wait(lambda s:not s["core_loaded"] and not s["unloading"])

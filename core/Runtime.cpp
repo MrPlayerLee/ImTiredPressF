@@ -1,4 +1,4 @@
-#include "../shared/Diagnostics.h"
+﻿#include "../shared/Diagnostics.h"
 #include "Common.h"
 #include "Overlay.h"
 #include "../shared/CoreApi.h"
@@ -9,6 +9,7 @@ HANDLE g_hMacroThread{};
 std::atomic<bool> g_isRunning{false}, g_exitThread{false}, g_autoDetect{true}, g_enableAltF{false};
 
 namespace {
+bool altGRegistered=false;
 void ReleaseResources()
 {
     KillTimer(g_hWnd,CoreMacroTimer); KillTimer(g_hWnd,CoreOverlayTimer);
@@ -39,12 +40,12 @@ bool Hotkeys(bool enable)
     if(enable==g_enableAltF.load()) return true;
     if(enable) {
         if(!RegisterHotKey(g_hWnd,IDHOT_ALT_F,MOD_ALT|MOD_NOREPEAT,'F')) { Diagnostics::Write("hotkey.RegisterHotKey Alt+F",GetLastError()); return false; }
-        if(!RegisterHotKey(g_hWnd,IDHOT_ALT_G,MOD_ALT|MOD_NOREPEAT,'G')) {
+        altGRegistered=RegisterHotKey(g_hWnd,IDHOT_ALT_G,MOD_ALT|MOD_NOREPEAT,'G')!=FALSE;
+        if(!altGRegistered) {
             Diagnostics::Write("hotkey.RegisterHotKey Alt+G",GetLastError());
-            UnregisterHotKey(g_hWnd,IDHOT_ALT_F); return false;
-        }
-        Diagnostics::Write("hotkey.registered Alt+F and Alt+G");
-    } else { UnregisterHotKey(g_hWnd,IDHOT_ALT_F); UnregisterHotKey(g_hWnd,IDHOT_ALT_G); }
+            Diagnostics::Write("hotkey.Alt+F remains enabled");
+        } else Diagnostics::Write("hotkey.registered Alt+F and Alt+G");
+    } else { UnregisterHotKey(g_hWnd,IDHOT_ALT_F); if(altGRegistered)UnregisterHotKey(g_hWnd,IDHOT_ALT_G); altGRegistered=false; }
     g_enableAltF=enable; return true;
 }
 void Event(UINT msg,WPARAM wp,LPARAM lp)
@@ -54,7 +55,7 @@ void Event(UINT msg,WPARAM wp,LPARAM lp)
     if(msg==CoreSampleMessage) HandleMacroSample(wp,lp);
     if(msg==WM_HOTKEY && g_enableAltF && !g_exitThread) {
         if(wp==IDHOT_ALT_F && !g_isRunning) StartMacro();
-        else if(wp==IDHOT_ALT_F || wp==IDHOT_ALT_G) StopMacro();
+        else if(wp==IDHOT_ALT_F || (wp==IDHOT_ALT_G && altGRegistered)) StopMacro();
     }
 }
 bool FinishClose()
@@ -63,9 +64,18 @@ bool FinishClose()
     ReleaseResources(); return true;
 }
 }
+void DisableMacroHotkeys(){Hotkeys(false);}
+
+static const wchar_t* CoreStatus()
+{
+    const wchar_t* status=MacroStatus();
+    if(g_enableAltF && !altGRegistered && wcscmp(status,L"상태 : 중지")==0)
+        return L"상태 : Alt+F 사용 가능 · Alt+G 등록 실패";
+    return status;
+}
 extern "C" __declspec(dllexport) const CoreApi* WINAPI ImTiredPressF_GetApi(UINT abi)
 {
     static const CoreApi api{sizeof(CoreApi),1,Open,StartMacro,StopMacro,Event,Hotkeys,Overlay::SetScale,
-                             MacroStatus,CanStart,CanStop,CloseMacro,FinishClose};
+                             CoreStatus,CanStart,CanStop,CloseMacro,FinishClose};
     return abi==api.abi ? &api : nullptr;
 }

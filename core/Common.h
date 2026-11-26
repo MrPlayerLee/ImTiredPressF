@@ -61,6 +61,7 @@ void StartMacro();
 void StopMacro();
 void HandleMacroSample(WPARAM token, LPARAM sample);
 bool HandleMacroTimer(UINT_PTR timer);
+void DisableMacroHotkeys();
 void CloseMacro();
 const wchar_t* MacroStatus();
 enum class MacroIndicator { Stopped, Ready, Working };

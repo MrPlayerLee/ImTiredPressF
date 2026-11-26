@@ -1,6 +1,7 @@
 ﻿#include "../shared/Diagnostics.h"
 #include "Common.h"
 #include "Overlay.h"
+#include "GameWindow.h"
 #include "OverlayLayout.h"
 #include <gdiplus.h>
 #include <windowsx.h>
@@ -188,30 +189,6 @@ namespace
         Gdiplus::PointF points[]{ {8,6},{18,6},{16,9},{16,14},{19,16},{7,16},{10,14},{10,9},{8,6} };
         g.DrawLines(&stroke,points,9); g.DrawLine(&stroke,13,16,13,22);
         g.Flush(Gdiplus::FlushIntentionSync);
-    }
-
-    bool IsGame(HWND window)
-    {
-        if (!window || !IsWindow(window)) return false;
-        wchar_t title[256]{};
-        GetWindowTextW(window,title,256);
-        if (std::wcscmp(title,L"원신") && std::wcscmp(title,L"Genshin Impact")) return false;
-        DWORD pid=0; GetWindowThreadProcessId(window,&pid);
-        HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid);
-        if (!process) { ITPF_DIAG("overlay.OpenProcess game",GetLastError());return false; }
-        wchar_t path[32768]{}; DWORD length=32768;
-        bool ok=QueryFullProcessImageNameW(process,0,path,&length)!=FALSE;
-        if(!ok) { ITPF_DIAG("overlay.QueryFullProcessImageName",GetLastError()); }
-        CloseHandle(process);
-        const wchar_t* basename=std::wcsrchr(path,L'\\');
-        if(ok && _wcsicmp(basename ? basename+1 : path,L"GenshinImpact.exe")) { ITPF_DIAG("overlay.game title matched but executable differs",0); }
-        return ok && _wcsicmp(basename ? basename+1 : path,L"GenshinImpact.exe")==0;
-    }
-
-    BOOL CALLBACK FindGame(HWND window, LPARAM argument)
-    {
-        if (!IsGame(window)) return TRUE;
-        *reinterpret_cast<HWND*>(argument)=window; return FALSE;
     }
 
     void Hide()
@@ -404,9 +381,7 @@ namespace Overlay
         currentScale=OverlayLayout::Animate(currentScale,desiredScale,seconds);
         if (!lastSearch || now-lastSearch>=1000 || (target && !IsWindow(target)))
         {
-            HWND game=g_gameHwnd.load();
-            if (!IsGame(game)) { game=nullptr; EnumWindows(FindGame,reinterpret_cast<LPARAM>(&game)); }
-            target=game; targetPid=0;
+            target=GameWindow::Find(); targetPid=0;
             if (target) GetWindowThreadProcessId(target,&targetPid);
             lastSearch=now;
             if (target!=previousTarget) { Diagnostics::Write(target?"overlay.game detected":"overlay.game lost");offsetX=offsetY=16; dirty=true; previousTarget=target; }

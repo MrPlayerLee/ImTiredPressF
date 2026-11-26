@@ -95,6 +95,12 @@ def tests(binaries):
         run("cl","/nologo","/std:c++17","/EHsc","/MT","/DUNICODE","/D_UNICODE","/DNOMINMAX","/wd4819",
             *["/I"+str(i) for i in includes],*[ROOT/s for s in sources],"/Fe:"+str(exe),"/link",*link,cwd=work)
         run(exe,*args,cwd=work)
+    native("GameWindowTests",["tests/GameWindowTests.cpp"],["user32.lib"])
+    with tempfile.TemporaryDirectory(dir=work) as fixture:
+        for image in ("GenshinImpact.exe","YuanShen.exe"):
+            executable=Path(fixture)/image
+            shutil.copy2(work/"GameWindowTests.exe",executable)
+            run(executable,"supported")
     native("VersionFeedTests",["tests/VersionFeedTests.cpp"],args=[ROOT/"VERSION_AGENT.md"])
     native("FocusControllerTests",["tests/FocusControllerTests.cpp"],["user32.lib"])
     cv=["/LIBPATH:"+str(lib),"opencv_imgproc4120.lib","opencv_core4120.lib","zlib.lib","advapi32.lib","ole32.lib","oleaut32.lib"]

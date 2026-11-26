@@ -1,5 +1,6 @@
 ﻿#include "../shared/Diagnostics.h"
 #include "Common.h"
+#include "GameWindow.h"
 #include "Common_OpenCV.h"
 #include "FocusController.h"
 #include "TargetWindowInput.h"
@@ -28,8 +29,7 @@ void StartMacro()
     if (closing || g_isRunning.load()) return;
     if (pulse.Busy()) { startRequested = true; return; }
     startRequested = false;
-    HWND game = FindWindowW(nullptr, L"원신");
-    if (!game) game = FindWindowW(nullptr, L"Genshin Impact");
+    HWND game = GameWindow::Find();
     if (!game)
     {
         Diagnostics::Write("macro.start game window missing");
@@ -104,8 +104,7 @@ void CloseMacro()
     closing = true;
     g_exitThread = true;
     StopMacro();
-    UnregisterHotKey(g_hWnd, IDHOT_ALT_F);
-    UnregisterHotKey(g_hWnd, IDHOT_ALT_G);
+    DisableMacroHotkeys();
     // The permanent macro timer was checked at window creation and also
     // advances shutdown; closing never depends on allocating a new timer.
 }

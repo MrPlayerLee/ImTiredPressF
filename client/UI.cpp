@@ -122,6 +122,7 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp)
                 if(LOWORD(wp)==IDC_START) Client::core->start(); else Client::core->stop();
             } break;
         case IDC_ALTFSTOP:
+            Client::notice.clear();
             if(Client::core && !Client::unloading && !Client::core->hotkeys(IsDlgButtonChecked(hwnd,IDC_ALTFSTOP)==BST_CHECKED)) {
                 CheckDlgButton(hwnd,IDC_ALTFSTOP,BST_UNCHECKED); Client::notice=L"상태 : 단축키 등록 실패 · ImTiredPressF.log 확인";
             } break;
