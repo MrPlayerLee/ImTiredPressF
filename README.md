@@ -6,7 +6,7 @@ Powered by ChatGPT Codex. (GPT-6.2 Astra)
 
 게임에서 F 입력을 자동화하는 Windows용 앱입니다. 직접 버튼을 눌러 사용하려면 **`ImTiredPressF.exe`**를 실행하세요. **MCP(Model Context Protocol)**는 연결한 AI가 사용자 요청에 따라 앱의 상태를 읽고 시작·중지 같은 버튼을 조작하는 방식입니다. 이 기능을 쓰려면 `ImTiredPressF(MCP).exe`를 실행하세요. MCP판은 허용된 조작마다 앱 안에서 추가 승인을 묻지 않습니다.
 
-1. [최신 Release](https://github.com/MrPlayerLee/ImTiredPressF/releases/latest)의 **Assets**에서 `ImTiredPressF-v<버전>-win-x64.zip`을 다운로드합니다. GitHub의 `Source code (zip)`은 개발용 소스입니다.
+1. [Windows x64용 다운로드](https://github.com/MrPlayerLee/ImTiredPressF/releases/latest/download/ImTiredPressF-win-x64.zip)를 눌러 최신 설치 ZIP을 받습니다.
 2. ZIP을 우클릭해 **모두 압축 풀기**를 선택하고 로컬 폴더에 풉니다. 버전 1.3.0부터 아래 다섯 파일이 한 폴더에 들어 있습니다. 관리자 권한으로 쓸 설치 폴더는 신뢰하는 관리자만 수정할 수 있는 위치를 선택하세요.
 3. 원하는 클라이언트 하나를 실행합니다. 창에서 코어 서명이 확인되면 게임을 열고 **시작**을 누릅니다. **중지**로 멈출 수 있습니다. 실행 방식을 바꿀 때는 현재 클라이언트를 먼저 닫으세요.
 
@@ -44,7 +44,7 @@ Powered by ChatGPT Codex. (GPT-6.2 Astra)
    ```
 
 3. 첫 빌드에서는 필요한 OpenCV 모듈을 정적으로 빌드해 사용자 캐시에 저장하고, Windows CNG 키 저장소에 내보내기 금지 개발 키를 생성합니다. 이후 같은 Windows 사용자와 저장소 주소로 빌드하면 같은 키를 재사용합니다. 공개키 사본은 `build/obj/ImTiredPressF/Release/release-public.blob`에 생성됩니다. 다른 개발자의 키로 서명한 DLL은 그 키를 내장한 클라이언트에서 사용합니다.
-4. 한 번의 빌드로 일반판과 MCP판, 공용 DLL과 도우미를 생성합니다. 빌드 중에는 앱을 닫아 두세요. 서명·업데이트, 두 클라이언트의 MCP 연결 여부와 중복 실행 경고를 실제 실행으로 검사합니다. 성공하면 `build/bin/Version_<클라이언트 버전>/`에서 두 실행 파일을 볼 수 있습니다. 첫 설치용 ZIP은 `build/ImTiredPressF-v<버전>-win-x64.zip`입니다.
+4. 한 번의 빌드로 일반판과 MCP판, 공용 DLL과 도우미를 생성합니다. 빌드 중에는 앱을 닫아 두세요. 서명·업데이트, 두 클라이언트의 MCP 연결 여부와 중복 실행 경고를 실제 실행으로 검사합니다. 성공하면 `build/bin/Version_<클라이언트 버전>/`에서 두 실행 파일을 볼 수 있습니다. 첫 설치용 ZIP은 `build/ImTiredPressF-win-x64.zip`입니다.
 
 ### MCP 개발 연결
 
@@ -53,7 +53,8 @@ Powered by ChatGPT Codex. (GPT-6.2 Astra)
 ### GitHub Release 배포
 
 1. [버전 규칙](VERSION_AGENT.md)에 따라 클라이언트와 코어 버전을 관리합니다. 일반판과 MCP판은 하나의 클라이언트 버전을 공유합니다.
-2. 빌드가 성공하면 GitHub Releases에서 해당 커밋을 대상으로 새 태그의 초안을 만듭니다. 첫 설치용 ZIP과 `build/release-assets/`의 **아홉 파일을 개별 첨부**합니다. 자동 업데이트용 MCP판 첨부 이름은 `ImTiredPressF-MCP.exe`이고, ZIP 안의 실행 이름은 `ImTiredPressF(MCP).exe`입니다. 생성된 파일명을 유지하세요.
-3. 첨부가 끝나면 정식 Release로 게시하고 **Latest**로 지정합니다. 각 클라이언트는 자신의 서명된 매니페스트에서 EXE·DLL 버전과 해시를 읽습니다. 포크의 후속 배포도 같은 서명 키를 사용해야 기존 사용자가 업데이트할 수 있습니다.
+2. 변경을 로컬 `main`에 커밋합니다. `origin`과 `BuildConfig.props`가 같은 GitHub 저장소를 가리키고, Git Credential Manager로 해당 저장소에 푸시·Release 게시 권한이 있는 계정에 로그인되어 있어야 합니다.
+3. 배포할 새 태그를 지정해 **`.\build.bat --release v1.3.0`**처럼 실행합니다. 이 명령이 빌드·서명·테스트를 마친 뒤 main을 푸시하고, Release 초안에 설치 ZIP 및 자동 업데이트용 아홉 파일을 올립니다. GitHub에 저장된 각 파일의 SHA-256을 확인한 뒤 Latest로 공개합니다. 코어만 변경하는 배포에도 새 태그를 사용합니다.
+4. README의 다운로드 주소는 그대로 둡니다. 이전 배포물은 태그별 Release에서 받을 수 있습니다. 포크에서는 README의 다운로드 주소도 자신의 저장소로 바꾸세요.
 
 하드웨어 키를 사용하는 오프라인 서명과 이전 파일 복구 방법은 [빌드·서명 안내](SECURITY_BUILD.md)에 있습니다.

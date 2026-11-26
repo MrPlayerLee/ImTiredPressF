@@ -8,7 +8,7 @@ Windows x64에서 `build.bat`을 실행합니다. 기존 Visual Studio C++ v143,
 | `VERSION_AGENT.md` | 클라이언트와 코어의 독립 버전 및 변경 규칙 |
 | `build/bin/Version_<client>` | 일반판·MCP판 EXE, 공용 코어, DLL 서명, Update_Installer.exe |
 | `build/release-assets` | GitHub Release에 첨부할 두 EXE, 공용 DLL과 서명, 도우미 및 종류별 매니페스트·서명 (총 9개) |
-| `build/ImTiredPressF-v<버전>-win-x64.zip` | 첫 설치용 다섯 파일 |
+| `build/ImTiredPressF-win-x64.zip` | 첫 설치용 다섯 파일 |
 
 개발용 개인키는 Windows 사용자 CNG 키 저장소에 내보내기 금지로 생성됩니다. 같은 Windows 사용자와 저장소 주소로 재빌드하면 기존 키를 재사용합니다. 공개키만 EXE에 포함됩니다. 키 저장소를 잃거나 다른 키로 변경하면 기존 사용자에게 신뢰할 수 있는 방법으로 새 EXE를 전달해야 합니다. 개발 계정에서 실행되는 다른 프로그램도 계정 권한으로 개발용 서명을 요청할 수 있습니다.
 

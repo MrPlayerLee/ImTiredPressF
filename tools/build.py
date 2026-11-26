@@ -129,7 +129,12 @@ def main():
     parser.add_argument("--request",action="store_true",help="build a public-key-only offline signing request")
     parser.add_argument("--finalize",type=Path,help="verify and package a returned, hardware-signed release directory")
     parser.add_argument("--public","--validate-all",action="store_true",help=argparse.SUPPRESS)  # Legacy invocations build both variants.
+    parser.add_argument("--release",metavar="TAG",help="push main and publish a verified GitHub release, e.g. v1.3.0")
     args=parser.parse_args()
+    if args.release:
+        from release import Publisher
+        if args.request:parser.error("--request produces unsigned binaries")
+        publisher=Publisher(ROOT,args.release)
     if args.version is not None and not re.fullmatch(r"(?:0|[1-9][0-9]?)(?:\.(?:0|[1-9][0-9]?)){2}",args.version):
         parser.error("--version requires three numbers from 0 to 99 without leading zeros")
     if args.request and args.version is not None:
@@ -160,7 +165,11 @@ def main():
         package_version=args.version or ".".join(map(str,version(versions,"client")))
         folder=BUILD/"bin"/("Version_"+package_version)
         publish(output,folder,FILES,True)
-        package_zip(folder,BUILD/("ImTiredPressF-v"+package_version+"-win-x64.zip"))
+        archive=BUILD/"ImTiredPressF-win-x64.zip"
+        package_zip(folder,archive)
+        if args.release:
+            names=["ImTiredPressF-MCP.exe" if n==MCP else n for n in ASSETS]
+            publisher.publish([BUILD/"release-assets"/n for n in names]+[archive])
         print("Signed distribution:",folder)
 if __name__=="__main__":main()
 
