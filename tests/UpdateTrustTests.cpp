@@ -26,6 +26,8 @@ int wmain(int argc,wchar_t** argv){
         copy("1.exe","ImTiredPressF.exe");copy("1.dll","ImTiredPressF.dll");copy("1.dll.sig","ImTiredPressF.dll.sig");
         RunningFixture liveClient(dir/"ImTiredPressF.exe");
         auto doc=ReadBytes(base/"manifest"),sig=ReadBytes(base/"manifest.sig");
+        Expect("manifest_repository",[&]{Trust::VerifyManifest(doc,sig,true);});
+        Expect("manifest_repository",[&]{Trust::VerifyManifest(ReadBytes(base/"mcp.manifest"),ReadBytes(base/"mcp.manifest.sig"));});
         auto release=Trust::VerifyManifest(doc,sig);auto badDoc=doc;badDoc.back()^=3;
         Expect("integrity",[&]{Trust::VerifyManifest(badDoc,sig);});auto badSig=sig;badSig.back()^=1;
         Expect("untrusted_signature",[&]{Trust::VerifyManifest(doc,badSig);});

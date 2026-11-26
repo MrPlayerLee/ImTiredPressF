@@ -9,7 +9,8 @@
   <PropertyGroup Label="Configuration"><Component>client</Component><ConfigurationType>Application</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet><UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <Import Project="..\Project.props" />
-  <ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions Condition="'$(EnableMcp)'=='true'">ITPF_MCP=1;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><SubSystem>Windows</SubSystem><AdditionalDependencies>user32.lib;gdi32.lib;gdiplus.lib;comctl32.lib;shell32.lib;bcrypt.lib;version.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
+  <PropertyGroup Condition="'$(EnableMcp)'=='true'"><TargetName>ImTiredPressF(MCP)</TargetName></PropertyGroup>
+  <ItemDefinitionGroup><ClCompile><PreprocessorDefinitions Condition="'$(EnableMcp)'!='true'">ITPF_MCP=0;%(PreprocessorDefinitions)</PreprocessorDefinitions><AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions Condition="'$(EnableMcp)'=='true'">ITPF_MCP=1;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><ProgramDatabaseFile Condition="'$(EnableMcp)'=='true'">$(OutDir)ImTiredPressF(MCP).pdb</ProgramDatabaseFile><SubSystem>Windows</SubSystem><AdditionalDependencies>user32.lib;gdi32.lib;gdiplus.lib;comctl32.lib;shell32.lib;bcrypt.lib;version.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Bridge.cpp" Condition="'$(EnableMcp)'=='true'" />
     <ProjectReference Include="../installer/Update_Installer.vcxproj">

@@ -1,3 +1,4 @@
+#include "../shared/ClientVariant.h"
 // Transport and restart adapters for the offline installer process test.
 #include "../client/ReleaseDownload.h"
 #include "../installer/Restart.h"
@@ -12,14 +13,15 @@ static Trust::Bytes ReadFixture(const std::filesystem::path& name)
     return {std::istreambuf_iterator<char>(stream), {}};
 }
 namespace Download {
-Trust::Release Latest()
+Trust::Release Latest(bool mcp)
 {
-    return Trust::VerifyManifest(ReadFixture("manifest"), ReadFixture("manifest.sig"));
+    std::string name=mcp?"mcp.manifest":"manifest";
+    return Trust::VerifyManifest(ReadFixture(name), ReadFixture(name+".sig"),mcp);
 }
 Package Component(int index, const Trust::Release& release)
 {
     std::ofstream("fetched") << index;
-    Package p{release, ReadFixture(index ? "2.dll" : "2.exe"), {}};
+    Package p{release, ReadFixture(index ? "2.dll" : (release.mcp ? "2.mcp.exe" : "2.exe")), {}};
     if (index) p.signature = ReadFixture("2.dll.sig");
     Trust::ValidatePayload(release, index, p.binary, p.signature);
     return p;
@@ -27,7 +29,7 @@ Package Component(int index, const Trust::Release& release)
 }
 void Restart(const std::wstring& folder, const Trust::Release& release)
 {
-    auto path = std::filesystem::path(folder) / L"ImTiredPressF.exe";
+    auto path = std::filesystem::path(folder) / ClientVariant::File(release.mcp);
     Trust::ValidatePayload(release, 0, ReadFixture(path), {});
     STARTUPINFOW startup{sizeof(startup)};
     startup.dwFlags = STARTF_USESHOWWINDOW;

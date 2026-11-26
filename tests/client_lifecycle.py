@@ -13,7 +13,7 @@ build=Path(sys.argv[1]).resolve()
 repo=Path(__file__).resolve().parents[1]
 def run():
     with tempfile.TemporaryDirectory() as tmp:
-        folder=Path(tmp); exe=folder/"ImTiredPressF.exe"; dll=exe.with_suffix(".dll")
+        folder=Path(tmp); exe=folder/"ImTiredPressF(MCP).exe"; dll=folder/"ImTiredPressF.dll"
         shutil.copy2(build/exe.name,exe)
         si=subprocess.STARTUPINFO();si.dwFlags=subprocess.STARTF_USESHOWWINDOW;si.wShowWindow=0
         app=subprocess.Popen([str(exe)],cwd=folder,startupinfo=si)

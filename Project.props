@@ -6,6 +6,8 @@
     <StaticCv>$(LOCALAPPDATA)\ImTiredPressF\opencv-4.12-static-v143\lib</StaticCv>
     <OutDir>$(RepoRoot)x64\$(Configuration)\</OutDir>
     <IntDir>$(RepoRoot)build\obj\$(MSBuildProjectName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Component)'=='client' and '$(EnableMcp)'=='true'">$(RepoRoot)build\obj\ImTiredPressF-MCP\$(Configuration)\</IntDir>
+    <VersionResourceArgs Condition="'$(Component)'=='client' and '$(EnableMcp)'=='true'">--mcp</VersionResourceArgs>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ImTiredPressF</TargetName>
     <OpenCvRoot Condition="'$(OpenCvRoot)'=='' and '$(OPENCV_ROOT)'!=''">$(OPENCV_ROOT)</OpenCvRoot>
@@ -18,7 +20,7 @@
   </ItemDefinitionGroup>
   <Target Name="GenerateVersion" Condition="'$(Component)'!='installer'" BeforeTargets="ResourceCompile" Inputs="$(RepoRoot)VERSION_AGENT.md;$(RepoRoot)tools\version.py" Outputs="$(IntDir)version.rc">
     <MakeDir Directories="$(IntDir)" />
-    <Exec Command="python &quot;$(RepoRoot)tools\version.py&quot; generate $(Component) &quot;$(IntDir).&quot;" />
+    <Exec Command="python &quot;$(RepoRoot)tools\version.py&quot; generate $(Component) &quot;$(IntDir).&quot; $(VersionResourceArgs)" />
   </Target>
   <ItemGroup><UpToDateCheckInput Include="$(RepoRoot)VERSION_AGENT.md;$(RepoRoot)tools\version.py" /><ResourceCompile Condition="'$(Component)'!='installer'" Include="$(IntDir)version.rc" /></ItemGroup>
   <Target Name="PrepareStaticOpenCv" BeforeTargets="ClCompile" Condition="'$(Component)'=='core'">

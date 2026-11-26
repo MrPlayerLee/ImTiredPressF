@@ -18,8 +18,8 @@ try {
     $exe=[IO.File]::ReadAllBytes("$Binaries\ImTiredPressF.exe");$dll=[IO.File]::ReadAllBytes("$Binaries\ImTiredPressF.dll")
     [IO.File]::WriteAllBytes("$dir\foreign.sig",(Sig $dll 'ITPF-C01'))
     # Use ECDSA fixture signatures for test resources only; the product does not trust this key.
-    foreach($file in @('exe','dll')){
-        if($file -eq 'exe'){$source=$exe}else{$source=$dll}
+    foreach($file in @('exe','mcp.exe','dll')){
+        if($file -eq 'mcp.exe'){$source=[IO.File]::ReadAllBytes("$Binaries\ImTiredPressF(MCP).exe")}elseif($file -eq 'exe'){$source=$exe}else{$source=$dll}
         $str=[Text.Encoding]::GetEncoding(28591).GetString($source)
         $index=$str.IndexOf([Text.Encoding]::GetEncoding(28591).GetString([byte[]](0xbd,0x04,0xef,0xfe,0,0,1,0)),[StringComparison]::Ordinal)
         if($index -lt 0){throw 'Missing fixture version resource'}
@@ -31,8 +31,13 @@ try {
             if($file -eq 'dll'){[IO.File]::WriteAllBytes("$dir\$patch.dll.sig",(Sig $copy 'ITPF-C01'))}
         }
     }
-    $eh=Hex $sha.ComputeHash([IO.File]::ReadAllBytes("$dir\2.exe"));$dh=Hex $sha.ComputeHash([IO.File]::ReadAllBytes("$dir\2.dll"))
-    $manifest=[Text.Encoding]::ASCII.GetBytes("ImTiredPressF-release-v1`nrepository=$repo`nclient=1.20.2`ncore=1.20.2`nexe_sha256=$eh`ndll_sha256=$dh`n")
-    [IO.File]::WriteAllBytes("$dir\manifest",$manifest)
-    [IO.File]::WriteAllBytes("$dir\manifest.sig",(Sig $manifest 'ITPF-M01'))
+    $dh=Hex $sha.ComputeHash([IO.File]::ReadAllBytes("$dir\2.dll"))
+    foreach($variant in @('standard','mcp')){
+        $image='2.exe';$schema='ImTiredPressF-release-v1';$name='manifest'
+        if($variant -eq 'mcp'){$image='2.mcp.exe';$schema='ImTiredPressF-mcp-release-v1';$name='mcp.manifest'}
+        $eh=Hex $sha.ComputeHash([IO.File]::ReadAllBytes("$dir\$image"))
+        $manifest=[Text.Encoding]::ASCII.GetBytes("$schema`nrepository=$repo`nclient=1.20.2`ncore=1.20.2`nexe_sha256=$eh`ndll_sha256=$dh`n")
+        [IO.File]::WriteAllBytes("$dir\$name",$manifest)
+        [IO.File]::WriteAllBytes("$dir\$name.sig",(Sig $manifest 'ITPF-M01'))
+    }
 }finally{$key.Dispose();$sha.Dispose()}

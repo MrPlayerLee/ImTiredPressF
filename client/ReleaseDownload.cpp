@@ -30,14 +30,14 @@ Trust::Bytes Get(const wchar_t* asset,size_t limit)
     return out;
 }
 }
-Trust::Release Latest()
+Trust::Release Latest(bool mcp)
 {
-    auto doc=Get(L"ImTiredPressF.manifest",2048);
-    return Trust::VerifyManifest(doc,Get(L"ImTiredPressF.manifest.sig",104));
+    auto doc=Get(mcp?L"ImTiredPressF-MCP.manifest":L"ImTiredPressF.manifest",2048);
+    return Trust::VerifyManifest(doc,Get(mcp?L"ImTiredPressF-MCP.manifest.sig":L"ImTiredPressF.manifest.sig",104),mcp);
 }
 Package Component(int index, const Trust::Release& release)
 {
-    Package p;p.release=release;p.binary=Get(index?L"ImTiredPressF.dll":L"ImTiredPressF.exe",96*1024*1024);
+    Package p;p.release=release;p.binary=Get(index?L"ImTiredPressF.dll":(release.mcp?L"ImTiredPressF-MCP.exe":L"ImTiredPressF.exe"),96*1024*1024);
     if(index)p.signature=Get(L"ImTiredPressF.dll.sig",104);
     Trust::ValidatePayload(p.release,index,p.binary,p.signature);return p;
 }

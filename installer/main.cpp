@@ -1,3 +1,4 @@
+#include "../shared/ClientVariant.h"
 #include "../client/ReleaseDownload.h"
 #include "Restart.h"
 #include "../shared/InstallerProtocol.h"
@@ -42,7 +43,8 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int)
         DWORD length = ARRAYSIZE(image);
         if (!QueryFullProcessImageNameW(parent.h, 0, image, &length)) throw Trust::Failure("client_required");
         std::filesystem::path client(image);
-        if (_wcsicmp(client.filename().c_str(), L"ImTiredPressF.exe")) throw Trust::Failure("client_required");
+        const bool mcp = _wcsicmp(client.filename().c_str(), ClientVariant::File(true)) == 0;
+        if (!mcp && _wcsicmp(client.filename().c_str(), ClientVariant::File(false))) throw Trust::Failure("client_required");
         const auto folder = client.parent_path().wstring();
         Trust::Directory directory(folder, true);
         auto gate = Trust::BeginInstaller(directory);
@@ -50,9 +52,9 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int)
         Trust::Handle ready(OpenEventW(EVENT_MODIFY_STATE, FALSE, name.c_str()));
         if (!ready.h) throw Trust::Failure("client_required");
         int component = args.dll ? 1 : 0;
-        auto offer = Download::Latest();
+        auto offer = Download::Latest(mcp);
         {
-            auto installed = Trust::Open(directory.path + (args.dll ? L"ImTiredPressF.dll" : L"ImTiredPressF.exe"), "installed_missing");
+            auto installed = Trust::Open(directory.path + (args.dll ? L"ImTiredPressF.dll" : ClientVariant::File(mcp)), "installed_missing");
             auto version = Trust::PeVersion(Trust::Read(installed.h, 96 * 1024 * 1024));
             if (VersionFeed::Number(offer.version[component]) <= VersionFeed::Number(version))
                 throw Trust::Failure("downgrade");

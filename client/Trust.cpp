@@ -1,4 +1,5 @@
 #include "Trust.h"
+#include "../shared/ClientVariant.h"
 #include "TrustConfig.h"
 #include "PeVersion.h"
 #include "VersionFeed.h"
@@ -111,7 +112,7 @@ HMODULE LoadCore(const std::wstring& folder)
     auto module=LoadLibraryExW(image.c_str(),nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
     if(!module) throw Failure("load_failed_"+std::to_string(GetLastError()));return module;
 }
-Release VerifyManifest(const Bytes& doc,const Bytes& sig)
+Release VerifyManifest(const Bytes& doc,const Bytes& sig,bool mcp)
 {
     Verify(doc,sig,true);
     std::wstring repo(Repository);std::string expected;for(auto ch:repo)expected+=static_cast<char>(ch);
@@ -120,8 +121,8 @@ Release VerifyManifest(const Bytes& doc,const Bytes& sig)
         if(!std::getline(stream,row)||row.rfind(prefix,0)!=0) throw Failure("manifest_format");
         return row.substr(prefix.size());
     };
-    if(field("")!="ImTiredPressF-release-v1" || field("repository=")!="https://github.com/"+expected) throw Failure("manifest_repository");
-    Release r;
+    if(field("")!=(mcp?"ImTiredPressF-mcp-release-v1":"ImTiredPressF-release-v1") || field("repository=")!="https://github.com/"+expected) throw Failure("manifest_repository");
+    Release r; r.mcp=mcp;
     for(int i=0;i<2;++i) {
         auto v=field(i?"core=":"client=");
         if(!std::regex_match(v,std::regex(R"((0|[1-9][0-9]?)\.(0|[1-9][0-9]?)\.(0|[1-9][0-9]?))"))) throw Failure("manifest_version");
@@ -207,7 +208,8 @@ Handle BeginInstaller(const Directory& dir)
 void Install(const std::wstring& folder,const Release& release,int i,const Bytes& bytes,const Bytes& sig,const std::wstring& running,const std::function<bool()>& activate)
 {
     Directory dir(folder,true);ValidatePayload(release,i,bytes,sig);
-    const auto dest=dir.path+(i?L"ImTiredPressF.dll":L"ImTiredPressF.exe");
+    const auto leaf=i?L"ImTiredPressF.dll":ClientVariant::File(release.mcp);
+    const auto dest=dir.path+leaf;
     // Serialize installers across processes. The lock is scoped to this exact installation.
     Handle gate=Leaf(dir,L".itpf-update.lock",GENERIC_READ|DELETE,0,FILE_CREATE,FILE_DELETE_ON_CLOSE,"update_busy");
     Stage binary(dir,bytes);
@@ -215,16 +217,16 @@ void Install(const std::wstring& folder,const Release& release,int i,const Bytes
     if(PeVersion(bytes)!=release.version[i]) throw Failure("pe_version");
     Bytes oldRecord,oldBinary;
     {
-        auto old=Leaf(dir,i?L"ImTiredPressF.dll":L"ImTiredPressF.exe",i?GENERIC_READ:GENERIC_READ|DELETE,FILE_SHARE_READ,FILE_OPEN,0,"installed_missing");auto oldData=Read(old.h,MaxBinary);auto oldVersion=PeVersion(oldData);
+        auto old=Leaf(dir,leaf,i?GENERIC_READ:GENERIC_READ|DELETE,FILE_SHARE_READ,FILE_OPEN,0,"installed_missing");auto oldData=Read(old.h,MaxBinary);auto oldVersion=PeVersion(oldData);
         if(VersionFeed::Number(release.version[i])<=VersionFeed::Number(oldVersion) ||
            (!i && VersionFeed::Number(release.version[i])<=VersionFeed::Number(running))) throw Failure("downgrade");
         if(!i) {
             // A running process retains its image section. Keep a recovery copy
             // while publishing the staged and verified executable under its normal name.
             const auto parent=dir.locks.back().h;
-            Rename(old.h,parent,L"ImTiredPressF.previous.exe");
+            Rename(old.h,parent,release.mcp?L"ImTiredPressF(MCP).previous.exe":L"ImTiredPressF.previous.exe");
             try {binary.Commit(dest);}
-            catch(...) {Rename(old.h,parent,L"ImTiredPressF.exe");throw;}
+            catch(...) {Rename(old.h,parent,leaf);throw;}
             return;
         }
         {

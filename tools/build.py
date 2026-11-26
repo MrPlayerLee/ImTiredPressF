@@ -11,13 +11,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import xml.etree.ElementTree as ET
+from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT=Path(__file__).resolve().parents[1]
 BUILD=ROOT/"build"
 BIN=ROOT/"x64/Release"
-FILES=("ImTiredPressF.exe","ImTiredPressF.dll","ImTiredPressF.dll.sig","Update_Installer.exe")
-ASSETS=(*FILES,"ImTiredPressF.manifest","ImTiredPressF.manifest.sig")
+MCP="ImTiredPressF(MCP).exe"
+FILES=("ImTiredPressF.exe","ImTiredPressF.dll","ImTiredPressF.dll.sig","Update_Installer.exe",MCP)
+ASSETS=(*FILES,"ImTiredPressF.manifest","ImTiredPressF.manifest.sig","ImTiredPressF-MCP.manifest","ImTiredPressF-MCP.manifest.sig")
 
 def run(*args,cwd=ROOT):
     subprocess.run([str(a) for a in args],cwd=cwd,check=True)
@@ -25,19 +26,20 @@ def run(*args,cwd=ROOT):
 def ps(script,*args):
     run("powershell","-NoProfile","-ExecutionPolicy","Bypass","-File",ROOT/script,*args)
 
-def publish(source,dest,names,strict=False):
+def publish(source,dest,names,strict=False,aliases=None):
+    aliases=aliases or {}
     dest.mkdir(parents=True,exist_ok=True)
-    if strict and {p.name for p in dest.iterdir()}-set(names):
+    if strict and {p.name for p in dest.iterdir()}-{aliases.get(n,n) for n in names}:
         raise ValueError(f"Unexpected files in distribution directory: {dest}")
     for name in names:
-        src=source/name; target=dest/name
+        src=source/name; target=dest/aliases.get(name,name)
         if target.exists() and src.read_bytes()==target.read_bytes(): continue
         with tempfile.NamedTemporaryFile(dir=dest,delete=False) as f: temp=Path(f.name)
         try:
             shutil.copy2(src,temp);os.replace(temp,target)
         finally:temp.unlink(missing_ok=True)
 
-def check_installer(folder):
+def check_installer(folder,client):
     # Read the client as resource data without running any code from the image.
     api=ctypes.WinDLL("kernel32",use_last_error=True)
     api.LoadLibraryExW.argtypes=[wintypes.LPCWSTR,wintypes.HANDLE,wintypes.DWORD]
@@ -50,7 +52,7 @@ def check_installer(folder):
     api.LockResource.restype=ctypes.c_void_p
     api.SizeofResource.argtypes=[wintypes.HMODULE,wintypes.HANDLE]
     api.FreeLibrary.argtypes=[wintypes.HMODULE]
-    module=api.LoadLibraryExW(str(folder/FILES[0]),None,0x22)
+    module=api.LoadLibraryExW(str(folder/client),None,0x22)
     if not module:raise ctypes.WinError(ctypes.get_last_error())
     try:
         res=api.FindResourceW(module,310,10)
@@ -60,16 +62,17 @@ def check_installer(folder):
             raise ValueError("Packaged updater differs from the authenticated client resource")
     finally:api.FreeLibrary(module)
 
-def audit(folder,mcp=None):
-    check_installer(folder)
-    for name in (*FILES[:2],FILES[3]):
+def audit(folder):
+    for client in (FILES[0],MCP):check_installer(folder,client)
+    for name in (*FILES[:2],FILES[3],MCP):
         imports=subprocess.check_output(["dumpbin","/nologo","/imports",folder/name]).decode(errors="replace").lower()
         forbidden=("opencv_world","msvcp140","vcruntime140","ncryptsignhash","bcryptsignhash","ncryptexportkey")
         if any(word in imports for word in forbidden):raise ValueError(f"Unexpected import in {name}")
         payload=(folder/name).read_bytes()
         if b"-----BEGIN PRIVATE KEY-----" in payload or b"-----BEGIN EC PRIVATE KEY-----" in payload or re.search(rb"(?:gh[pousr]_[A-Za-z0-9]{32,}|github_pat_[A-Za-z0-9_]{50,})",payload):
             raise ValueError(f"Credential marker in {name}")
-        if name==FILES[0] and mcp is not None:
+        if name in (FILES[0],MCP):
+            mcp=name==MCP
             if ("createnamedpipew" in imports)!=mcp:raise ValueError("MCP compile-time exclusion failed")
             if not mcp and "ImTiredPressF.UI.".encode("utf-16le") in payload:raise ValueError("MCP endpoint retained")
     if (folder/FILES[2]).stat().st_size!=104:raise ValueError("Invalid detached signature size")
@@ -77,7 +80,7 @@ def audit(folder,mcp=None):
 def msbuild(project,*extra):
     run("msbuild",project,"/m","/nologo","/v:minimal","/p:Configuration=Release","/p:Platform=x64",*extra)
 
-def tests(binaries,enabled):
+def tests(binaries):
     work=BUILD/"security-tests";work.mkdir(parents=True,exist_ok=True)
     sdk=Path(os.environ.get("OPENCV_ROOT",r"E:\OpenCV\opencv\build"))
     lib=Path(os.environ["LOCALAPPDATA"])/"ImTiredPressF/opencv-4.12-static-v143/lib"
@@ -101,13 +104,23 @@ def tests(binaries,enabled):
         "/I"+str(work),ROOT/"installer/main.cpp",ROOT/"tests/InstallerFixture.cpp",ROOT/"client/Trust.cpp",
         "/Fe:InstallerFlow.exe","/link","/subsystem:windows","bcrypt.lib","version.lib","user32.lib","shell32.lib",cwd=work)
     run(sys.executable,ROOT/"tests/installer_flow.py",work)
-    if enabled:run(sys.executable,ROOT/"tests/client_lifecycle.py",binaries,work/"foreign.sig")
-    else:
-        # Exercise the four-file installation layout in a fresh user directory.
-        with tempfile.TemporaryDirectory() as install:
-            package=Path(install)
-            publish(binaries,package,FILES,True)
-            run(sys.executable,ROOT/"tests/no_mcp.py",package)
+    run(sys.executable,ROOT/"tests/client_lifecycle.py",binaries,work/"foreign.sig")
+    with tempfile.TemporaryDirectory() as install:
+        package=Path(install)
+        publish(binaries,package,FILES,True)
+        run(sys.executable,ROOT/"tests/no_mcp.py",package)
+        run(sys.executable,ROOT/"tests/single_instance.py",package)
+
+def package_zip(folder,archive):
+    with tempfile.NamedTemporaryFile(dir=archive.parent,delete=False) as f: temp=Path(f.name)
+    try:
+        with ZipFile(temp,"w",ZIP_DEFLATED) as z:
+            for name in FILES:z.write(folder/name,name)
+        with ZipFile(temp) as z:
+            if set(z.namelist())!=set(FILES) or any(z.read(n)!=(folder/n).read_bytes() for n in FILES):
+                raise ValueError("Invalid distribution ZIP")
+        os.replace(temp,archive)
+    finally:temp.unlink(missing_ok=True)
 
 def main():
     parser=argparse.ArgumentParser()
@@ -115,16 +128,13 @@ def main():
     parser.add_argument("--official-public",type=Path)
     parser.add_argument("--request",action="store_true",help="build a public-key-only offline signing request")
     parser.add_argument("--finalize",type=Path,help="verify and package a returned, hardware-signed release directory")
-    parser.add_argument("--public",action="store_true",help="package a client with the local MCP bridge disabled")
-    parser.add_argument("--validate-all",action="store_true",help="add a separately isolated build with MCP disabled")
+    parser.add_argument("--public","--validate-all",action="store_true",help=argparse.SUPPRESS)  # Legacy invocations build both variants.
     args=parser.parse_args()
     if args.version is not None and not re.fullmatch(r"(?:0|[1-9][0-9]?)(?:\.(?:0|[1-9][0-9]?)){2}",args.version):
         parser.error("--version requires three numbers from 0 to 99 without leading zeros")
     if args.request and args.version is not None:
         parser.error("--version names a finished distribution; use it with --finalize for official builds")
     if bool(args.official_public)!=bool(args.request or args.finalize) or (args.request and args.finalize):parser.error("Use --official-public with exactly one of --request / --finalize.")
-    enabled=ET.parse(ROOT/"BuildConfig.props").findtext(".//{*}EnableMcp").strip().lower()=="true"
-    if args.public:enabled=False
     pub=["-PublicFile",args.official_public.resolve()] if args.official_public else []
     BUILD.mkdir(exist_ok=True)
     with (BUILD/"security-build.lock").open("a+b") as lock:
@@ -135,27 +145,22 @@ def main():
             ps("tools/sign.ps1","verify",output,*pub)
         else:
             extra=["/p:ReleasePublicKey="+str(args.official_public.resolve())] if pub else []
-            if args.public:extra.append("/p:EnableMcp=false")
-            msbuild(ROOT/"ImTiredPressF.sln",*extra)
+            msbuild(ROOT/"ImTiredPressF.sln","/p:EnableMcp=false",*extra)
+            msbuild(ROOT/"client/ImTiredPressF.vcxproj","/p:EnableMcp=true","/p:BuildProjectReferences=false",*extra)
             if args.request:
-                dest=BUILD/"signing-request";publish(output,dest,(*FILES[:2],FILES[3]),True)
+                dest=BUILD/"signing-request";publish(output,dest,(*FILES[:2],FILES[3],MCP),True)
                 print("Unsigned request for the separate hardware signer:",dest);return
             ps("tools/sign.ps1","release",output)
             ps("tools/sign.ps1","verify",output)
-        audit(output,enabled)
-        tests(output,enabled)
-        if args.validate_all:
-            off=BUILD/"mcp-disabled";obj=BUILD/"obj/no-mcp"
-            msbuild(ROOT/"client/ImTiredPressF.vcxproj","/p:EnableMcp=false","/p:OutDir="+str(off)+os.sep,
-                    "/p:IntDir="+str(obj)+os.sep,*(["/p:ReleasePublicKey="+str(args.official_public.resolve())] if pub else []))
-            publish(output,off,FILES[1:]);audit(off,False);run(sys.executable,ROOT/"tests/no_mcp.py",off)
-        publish(output,BUILD/"release-assets",ASSETS,True)
+        audit(output)
+        tests(output)
+        publish(output,BUILD/"release-assets",ASSETS,True,{MCP:"ImTiredPressF-MCP.exe"})
         from version import version,manifest
         versions=manifest.read_text("utf-8-sig")
-        client,core=(".".join(map(str,version(versions,c))) for c in ("client","core"))
-        package_version=args.version or (client+("_Core_"+core if core!=client else ""))
+        package_version=args.version or ".".join(map(str,version(versions,"client")))
         folder=BUILD/"bin"/("Version_"+package_version)
         publish(output,folder,FILES,True)
+        package_zip(folder,BUILD/("ImTiredPressF-v"+package_version+"-win-x64.zip"))
         print("Signed distribution:",folder)
 if __name__=="__main__":main()
 

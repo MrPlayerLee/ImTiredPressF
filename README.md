@@ -2,17 +2,58 @@
 Genshin Impact Auto F Clicker. But No more focus.
 Powered by ChatGPT Codex. (GPT-6.2 Astra)
 
-## Windows x64 설치
+## 일반 사용자 · Windows x64 설치
 
-[최신 Release](https://github.com/MrPlayerLee/ImTiredPressF/releases/latest)에서 Windows x64 배포 ZIP을 받아 로컬 폴더에 풉니다. 네 파일을 같은 폴더에 둔 상태로 `ImTiredPressF.exe`를 실행합니다. 관리자 권한으로 실행할 설치 폴더는 신뢰할 수 있는 관리자만 수정할 수 있는 위치를 사용합니다.
+게임에서 F 입력을 자동화하는 Windows용 앱입니다. 직접 버튼을 눌러 사용하려면 **`ImTiredPressF.exe`**를 실행하세요. **MCP(Model Context Protocol)**는 연결한 AI가 사용자 요청에 따라 앱의 상태를 읽고 시작·중지 같은 버튼을 조작하는 방식입니다. 이 기능을 쓰려면 `ImTiredPressF(MCP).exe`를 실행하세요. MCP판은 허용된 조작마다 앱 안에서 추가 승인을 묻지 않습니다.
 
-**업데이트 확인**을 누르면 현재 버전과 서명이 확인된 최신 클라이언트·코어 버전이 표시됩니다. 업데이트할 구성 요소 하나를 선택하고 Windows 권한 요청을 승인합니다. 클라이언트를 선택하면 종료 후 새 버전이 실행됩니다. 코어를 선택하면 클라이언트가 열린 채로 DLL을 언로드하고 교체가 끝나면 서명을 확인해 다시 로드합니다. 두 구성 요소의 업데이트 순서는 자유롭게 선택할 수 있습니다.
+1. [최신 Release](https://github.com/MrPlayerLee/ImTiredPressF/releases/latest)의 **Assets**에서 `ImTiredPressF-v<버전>-win-x64.zip`을 다운로드합니다. GitHub의 `Source code (zip)`은 개발용 소스입니다.
+2. ZIP을 우클릭해 **모두 압축 풀기**를 선택하고 로컬 폴더에 풉니다. 버전 1.3.0부터 아래 다섯 파일이 한 폴더에 들어 있습니다. 관리자 권한으로 쓸 설치 폴더는 신뢰하는 관리자만 수정할 수 있는 위치를 선택하세요.
+3. 원하는 클라이언트 하나를 실행합니다. 창에서 코어 서명이 확인되면 게임을 열고 **시작**을 누릅니다. **중지**로 멈출 수 있습니다. 실행 방식을 바꿀 때는 현재 클라이언트를 먼저 닫으세요.
 
-## 소스 빌드와 배포
+| 파일 | 용도 |
+| --- | --- |
+| `ImTiredPressF.exe` | 일반판. 화면에서 직접 조작하며 MCP 연결 기능은 컴파일에서 제외됩니다. |
+| `ImTiredPressF(MCP).exe` | AI 연동판. 같은 Windows 로그온 세션에서 연결한 MCP 도구가 상태 조회, 버튼 조작, 오버레이 크기 조정을 할 수 있습니다. |
+| `ImTiredPressF.dll` | 두 클라이언트가 공유하는 게임 감지·입력·오버레이 코어입니다. |
+| `ImTiredPressF.dll.sig` | 클라이언트가 DLL을 로드하기 전에 확인하는 서명입니다. DLL과 함께 두세요. |
+| `Update_Installer.exe` | 업데이트를 선택하면 클라이언트가 호출하는 설치 도우미입니다. |
 
-1. 포크 또는 소스 ZIP에서 자체 업데이트를 배포하려면 `BuildConfig.props`의 `RepositoryUrl`에 자신의 GitHub 저장소 주소를 입력합니다.
-2. Windows x64에서 Visual Studio C++ v143, Windows SDK, Python 및 OpenCV 4.12.0을 준비하고 `build.bat`을 실행합니다. 일반 사용자용 빌드는 `build.bat --public`으로 만듭니다.
-3. 첫 빌드에서 Windows 사용자별 개발 서명 키를 생성합니다. 공개키는 클라이언트와 도우미에 내장되고 `build/obj/ImTiredPressF/Release/release-public.blob`에도 생성됩니다. 자체 서명한 코어는 같은 키를 신뢰하는 자체 클라이언트로 실행합니다.
-4. 배포 시 GitHub Releases에 새 태그의 초안을 만들고 `build/release-assets`의 여섯 파일을 **원래 이름 그대로 개별 첨부**합니다. 첫 설치용으로 `build/bin/Version_…` 안의 네 파일을 묶은 ZIP도 첨부할 수 있습니다. 첨부가 끝나면 정식 Release로 게시하고 **Latest**로 지정합니다. 클라이언트는 해당 Release의 서명된 매니페스트를 읽습니다.
+### 업데이트
 
-[빌드 환경, 서명 방식과 복구 절차](SECURITY_BUILD.md) · [구성 요소별 버전 규칙](VERSION_AGENT.md)
+**업데이트 확인**을 눌러 현재 버전과 최신 버전을 비교합니다. **클라이언트 업데이트**는 실행 중인 종류의 EXE를 교체하고 같은 종류로 재시작합니다. 다른 EXE도 업데이트하려면 그 클라이언트를 실행해 같은 절차를 따르세요. **코어 업데이트**는 클라이언트를 열어 둔 채 공용 DLL을 언로드하고 교체한 뒤 서명을 확인해 다시 로드합니다. 한 번에 하나를 선택하며 순서는 자유롭습니다. Windows에서 권한을 요청하면 설치를 계속할지 선택하세요.
+
+기존 1.2.0 일반판은 기존 업데이트 버튼으로 일반판을 갱신할 수 있습니다. MCP판을 처음 추가하려면 두 실행 파일이 든 배포 ZIP을 받으세요. DLL 또는 서명이 없다는 메시지가 뜨면 같은 Release의 ZIP을 새 폴더에 다시 풀고 그 폴더에서 실행하세요.
+
+## 개발자 · 소스에서 빌드
+
+### 준비
+
+- **Windows x64와 Visual Studio 2022 또는 Build Tools**. Visual Studio Installer에서 **C++를 사용한 데스크톱 개발**을 선택하고 **MSVC v143 x64/x86**, **Windows SDK**, **Windows용 C++ CMake 도구**를 설치합니다. OpenCV 정적 빌드는 Visual Studio 17 2022 CMake 생성기를 사용합니다. [Visual Studio 설치 안내](https://learn.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
+- **Python 3.9 이상과 Windows PowerShell**. 터미널에서 `python --version`과 `powershell -NoProfile -Command "Get-Host"`가 실행되는지 확인합니다.
+- **OpenCV 4.12.0 SDK와 같은 버전의 소스**. `OPENCV_ROOT`는 `include/opencv2`가 있는 SDK 폴더, `OPENCV_SOURCE`는 최상위 `CMakeLists.txt`가 있는 소스 폴더를 가리킵니다. 기본 SDK 위치는 `E:\OpenCV\opencv\build`이고 기본 소스 위치는 그 옆의 `sources`입니다. [OpenCV 4.12.0 다운로드](https://github.com/opencv/opencv/releases/tag/4.12.0)
+
+### 빌드 및 검증
+
+1. 저장소를 클론하거나 **Code → Download ZIP**으로 소스를 받아 압축을 풉니다. 포크에서 업데이트를 배포하려면 첫 빌드 전에 `BuildConfig.props`의 `RepositoryUrl`을 `https://github.com/<소유자>/<저장소>` 형식으로 바꿉니다.
+2. `build.bat`과 솔루션이 있는 폴더에서 PowerShell을 엽니다. OpenCV를 다른 위치에 설치했다면 아래 예시 경로를 자신의 경로로 바꿉니다.
+
+   ```powershell
+   $env:OPENCV_ROOT = 'D:\OpenCV\opencv\build'
+   $env:OPENCV_SOURCE = 'D:\OpenCV\opencv\sources'
+   .\build.bat
+   ```
+
+3. 첫 빌드에서는 필요한 OpenCV 모듈을 정적으로 빌드해 사용자 캐시에 저장하고, Windows CNG 키 저장소에 내보내기 금지 개발 키를 생성합니다. 이후 같은 Windows 사용자와 저장소 주소로 빌드하면 같은 키를 재사용합니다. 공개키 사본은 `build/obj/ImTiredPressF/Release/release-public.blob`에 생성됩니다. 다른 개발자의 키로 서명한 DLL은 그 키를 내장한 클라이언트에서 사용합니다.
+4. 한 번의 빌드로 일반판과 MCP판, 공용 DLL과 도우미를 생성합니다. 빌드 중에는 앱을 닫아 두세요. 서명·업데이트, 두 클라이언트의 MCP 연결 여부와 중복 실행 경고를 실제 실행으로 검사합니다. 성공하면 `build/bin/Version_<클라이언트 버전>/`에서 두 실행 파일을 볼 수 있습니다. 첫 설치용 ZIP은 `build/ImTiredPressF-v<버전>-win-x64.zip`입니다.
+
+### MCP 개발 연결
+
+`ImTiredPressF(MCP).exe`를 실행한 뒤 사용하는 AI 앱의 **stdio MCP 서버** 설정에서 실행 명령을 `python`으로, 인수를 `-I`와 소스의 `tools/mcp_server.py` 절대 경로로 지정합니다. 연결 후 `get_ui`로 실행 상태를 읽고, `click_button`으로 활성 버튼을 누르거나 `set_overlay_size`로 오버레이 크기를 조정할 수 있습니다. Windows의 UAC 요청은 업데이트 도우미가 별도로 처리합니다.
+
+### GitHub Release 배포
+
+1. [버전 규칙](VERSION_AGENT.md)에 따라 클라이언트와 코어 버전을 관리합니다. 일반판과 MCP판은 하나의 클라이언트 버전을 공유합니다.
+2. 빌드가 성공하면 GitHub Releases에서 해당 커밋을 대상으로 새 태그의 초안을 만듭니다. 첫 설치용 ZIP과 `build/release-assets/`의 **아홉 파일을 개별 첨부**합니다. 자동 업데이트용 MCP판 첨부 이름은 `ImTiredPressF-MCP.exe`이고, ZIP 안의 실행 이름은 `ImTiredPressF(MCP).exe`입니다. 생성된 파일명을 유지하세요.
+3. 첨부가 끝나면 정식 Release로 게시하고 **Latest**로 지정합니다. 각 클라이언트는 자신의 서명된 매니페스트에서 EXE·DLL 버전과 해시를 읽습니다. 포크의 후속 배포도 같은 서명 키를 사용해야 기존 사용자가 업데이트할 수 있습니다.
+
+하드웨어 키를 사용하는 오프라인 서명과 이전 파일 복구 방법은 [빌드·서명 안내](SECURITY_BUILD.md)에 있습니다.

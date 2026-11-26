@@ -26,6 +26,7 @@ def main():
     parser.add_argument("action", choices=("check","bump","generate"))
     parser.add_argument("component", choices=("client","core"))
     parser.add_argument("value")
+    parser.add_argument("--mcp", action="store_true", help="write version resources for the MCP executable")
     args = parser.parse_args()
     # Serialize writers to the shared manifest; an interrupted writer never truncates it.
     lock = manifest.with_suffix(".lock")
@@ -40,6 +41,7 @@ def main():
             out = Path(args.value)
             out.mkdir(parents=True, exist_ok=True)
             ext = "exe" if args.component=="client" else "dll"
+            basename = "ImTiredPressF(MCP)" if args.mcp else "ImTiredPressF"
             fields = ",".join(map(str,(*current,0)))
             rc = f'''#include <winver.h>
 1 VERSIONINFO
@@ -54,7 +56,7 @@ BEGIN
   BEGIN
    VALUE "FileVersion", "{dotted}\\0"
    VALUE "ProductVersion", "{dotted}\\0"
-   VALUE "OriginalFilename", "ImTiredPressF.{ext}\\0"
+   VALUE "OriginalFilename", "{basename}.{ext}\\0"
   END
  END
  BLOCK "VarFileInfo"

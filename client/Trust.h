@@ -30,8 +30,8 @@ void Verify(const Bytes& bytes,const Bytes& signature,bool manifest=false);
 HMODULE LoadCore(const std::wstring& folder);
 void CacheInstaller(const std::wstring& folder,const Bytes& image);
 const wchar_t* Message(const std::string& code);
-struct Release {std::wstring version[2]; std::string hash[2];};
-Release VerifyManifest(const Bytes& document,const Bytes& signature);
+struct Release {bool mcp=false; std::wstring version[2]; std::string hash[2];};
+Release VerifyManifest(const Bytes& document,const Bytes& signature,bool mcp=false);
 void ValidatePayload(const Release&,int component,const Bytes& binary,const Bytes& signature);
 void Install(const std::wstring& folder,const Release&,int component,const Bytes& binary,const Bytes& signature,const std::wstring& runningVersion,const std::function<bool()>& activate={});
 }

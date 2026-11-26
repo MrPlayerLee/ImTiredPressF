@@ -1,4 +1,5 @@
-﻿#include "Client.h"
+﻿#include "../shared/ClientVariant.h"
+#include "Client.h"
 #include "PanelSkin.h"
 #include <commctrl.h>
 #include "ReleaseDownload.h"
@@ -40,7 +41,7 @@ void SetEnabled(int id,bool enabled) {
 }
 void RefreshInstalled()
 {
-    auto dir=Folder(); installed[0]=DiskVersion(dir+L"ImTiredPressF.exe"); installed[1]=DiskVersion(dir+L"ImTiredPressF.dll");
+    auto dir=Folder(); installed[0]=DiskVersion(dir+ClientVariant::File(ITPF_MCP!=0)); installed[1]=DiskVersion(dir+L"ImTiredPressF.dll");
     for(int i=0;i<2;++i) updated[i]=Number(latest[i])>Number(installed[i]) && Number(latest[i])>=0;
 }
 }
@@ -77,7 +78,7 @@ void CheckVersions()
     if(Checking() || quitting)return;
     RefreshInstalled();
     latest[0]=latest[1]=L"확인 중";updated.fill(false);updateState="checking";
-    try { transfer=std::async(std::launch::async,Download::Latest); }
+    try { transfer=std::async(std::launch::async,Download::Latest,ITPF_MCP!=0); }
     catch(...) {updateState="transfer_failed";notice=L"상태 : 업데이트 확인 실패";}
     InvalidateRect(g_hWnd,nullptr,FALSE);
 }

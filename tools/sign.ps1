@@ -81,13 +81,25 @@ try{
     $clientVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe).FileVersion
     $coreVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($dll).FileVersion
     foreach($v in @($clientVersion,$coreVersion)){if($v -notmatch '^(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)$'){throw 'Invalid PE version'}}
-    $doc="ImTiredPressF-release-v1`nrepository=$repo`nclient=$clientVersion`ncore=$coreVersion`nexe_sha256=$(Hex (HashFile $exe))`ndll_sha256=$(Hex (HashFile $dll))`n"
-    if($Action -ne 'verify'){
-        AtomicBytes $manifest ([Text.Encoding]::ASCII.GetBytes($doc))
-        AtomicBytes ($manifest+'.sig') (Record $manifest 'ITPF-M01')
+    $mcpExe=Join-Path $dir 'ImTiredPressF(MCP).exe'
+    if([Diagnostics.FileVersionInfo]::GetVersionInfo($mcpExe).FileVersion -cne $clientVersion){throw 'Client version mismatch'}
+    foreach($variant in @('standard','mcp')){
+        $schema='ImTiredPressF-release-v1'
+        $image=$exe
+        $manifest=Join-Path $dir 'ImTiredPressF.manifest'
+        if($variant -eq 'mcp'){
+            $schema='ImTiredPressF-mcp-release-v1'
+            $image=$mcpExe
+            $manifest=Join-Path $dir 'ImTiredPressF-MCP.manifest'
+        }
+        $doc="$schema`nrepository=$repo`nclient=$clientVersion`ncore=$coreVersion`nexe_sha256=$(Hex (HashFile $image))`ndll_sha256=$(Hex (HashFile $dll))`n"
+        if($Action -ne 'verify'){
+            AtomicBytes $manifest ([Text.Encoding]::ASCII.GetBytes($doc))
+            AtomicBytes ($manifest+'.sig') (Record $manifest 'ITPF-M01')
+        }
+        Verify $manifest 'ITPF-M01'
+        if([IO.File]::ReadAllText($manifest) -cne $doc){throw 'Release manifest and artifacts differ'}
     }
-    Verify $manifest 'ITPF-M01'
-    if([IO.File]::ReadAllText($manifest) -cne $doc){throw 'Release manifest and artifacts differ'}
     Write-Output "Verified release $clientVersion / $coreVersion"
 }finally{if(Get-Variable ecdsa -ErrorAction SilentlyContinue){$ecdsa.Dispose()};$key.Dispose();$sha.Dispose()}
 

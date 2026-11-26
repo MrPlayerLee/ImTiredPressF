@@ -2,6 +2,7 @@
 from ctypes import WinDLL, byref, c_ulonglong, get_last_error
 from ctypes import wintypes as w
 from pathlib import Path
+from contextlib import contextmanager
 import shutil
 import subprocess
 import sys
@@ -33,14 +34,31 @@ def close_window(pid):
         time.sleep(.05)
     raise RuntimeError(f"Window missing for test process {pid}")
 
-def exercise(work, component):
-    with tempfile.TemporaryDirectory(dir=work) as scratch:
-        folder = Path(scratch)
-        for name in ("manifest", "manifest.sig", "2.dll", "2.dll.sig", "2.exe"):
+@contextmanager
+def install_folder(work):
+    scratch = tempfile.TemporaryDirectory(dir=work)
+    try:
+        yield Path(scratch.name)
+    finally:
+        # Windows can briefly keep an image section open after the process exits.
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                scratch.cleanup()
+                break
+            except OSError as error:
+                if error.winerror not in (5, 32, 267) or time.monotonic() >= deadline:
+                    raise
+                time.sleep(.15)
+
+def exercise(work, component, mcp):
+    with install_folder(work) as folder:
+        for name in ("manifest", "manifest.sig", "mcp.manifest", "mcp.manifest.sig", "2.mcp.exe", "2.dll", "2.dll.sig", "2.exe"):
             shutil.copy2(work / name, folder / name)
         for suffix in ("exe", "dll", "dll.sig"):
             shutil.copy2(work / ("1." + suffix), folder / ("ImTiredPressF." + suffix))
-        exe = folder / "ImTiredPressF.exe"
+        shutil.copy2(work / "1.mcp.exe", folder / "ImTiredPressF(MCP).exe")
+        exe = folder / ("ImTiredPressF(MCP).exe" if mcp else "ImTiredPressF.exe")
         startup = subprocess.STARTUPINFO()
         startup.dwFlags = subprocess.STARTF_USESHOWWINDOW
         startup.wShowWindow = 0
@@ -59,11 +77,14 @@ def exercise(work, component):
                 close_window(parent.pid)
                 assert parent.wait(10) == 0
             assert helper.wait(20) == 0
-            for suffix in ("exe", "dll", "dll.sig"):
-                changed = (component == "client") == (suffix == "exe")
-                assert (folder / ("ImTiredPressF." + suffix)).read_bytes() == (work / (("2." if changed else "1.") + suffix)).read_bytes()
+            for suffix, installed in (("exe","ImTiredPressF.exe"),("mcp.exe","ImTiredPressF(MCP).exe"),("dll","ImTiredPressF.dll"),("dll.sig","ImTiredPressF.dll.sig")):
+                changed = (component=="client" and exe.name==installed) or (component=="dll" and suffix.startswith("dll"))
+                assert (folder/installed).read_bytes() == (work/(("2." if changed else "1.")+suffix)).read_bytes()
             assert (folder / "restarted.pid").exists() == (component == "client")
-            if component == "dll": assert parent.poll() is None
+            if component == "dll":
+                assert parent.poll() is None
+                close_window(parent.pid)
+                assert parent.wait(10) == 0
         finally:
             if helper and helper.poll() is None: helper.kill(); helper.wait(5)
             if parent.poll() is None: parent.terminate(); parent.wait(5)
@@ -82,5 +103,6 @@ def exercise(work, component):
 
 if __name__ == "__main__":
     work = Path(sys.argv[1]).resolve()
-    for component in ("dll", "client"): exercise(work, component)
+    for mcp in (False, True):
+        for component in ("dll", "client"): exercise(work, component, mcp)
     print("PASS independent DLL update, client exit before download, replacement and restart.")

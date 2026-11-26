@@ -1,7 +1,7 @@
 # ImTiredPressF 버전 관리
 
 ```ini
-client = 1.2.0
+client = 1.3.0
 core = 1.2.0
 ```
 
