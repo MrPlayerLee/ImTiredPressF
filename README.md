@@ -1,5 +1,6 @@
 # ImTiredPressF
 Genshin Impact Auto F Clicker. But No more focus.
+Powered by ChatGPT Codex. (GPT-6.2 Astra)
 
 ## Windows x64 설치
 
